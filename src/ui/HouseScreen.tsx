@@ -96,6 +96,37 @@ function SharingSection() {
     }
   }
 
+  const amOwner = members.some((m) => m.userId === user.id && m.role === 'owner');
+
+  async function removeMember(userId: string, name: string) {
+    if (!confirm(`Remover ${name || 'este morador'} da Casa? Ele perde o acesso aos dados sincronizados (o que já está no aparelho dele continua lá).`)) return;
+    try {
+      await s.backend!.leave(hid, userId);
+      setMembers((ms) => ms.filter((m) => m.userId !== userId));
+      toast('Morador removido');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
+  async function leaveOrDelete() {
+    try {
+      if (amOwner) {
+        if (!confirm('Apagar esta Casa NO SERVIDOR para todos os moradores? Os dados deste aparelho permanecem (faça backup). Não pode ser desfeito.')) return;
+        await s.backend!.deleteHousehold(hid);
+        toast('Casa apagada do servidor');
+      } else {
+        if (!confirm('Sair desta Casa? Você deixa de receber as atualizações.')) return;
+        await s.backend!.leave(hid, user!.id);
+        toast('Você saiu da Casa');
+      }
+      await updateSession({ householdConnected: false });
+      await restartSync();
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
   async function makeInvite() {
     setBusy(true);
     try {
@@ -135,6 +166,11 @@ function SharingSection() {
                 {m.displayName || 'Sem nome'} {m.userId === user.id && '(você)'}
               </span>
               <span>{m.role === 'owner' ? 'Dono' : 'Membro'}</span>
+              {amOwner && m.userId !== user.id && (
+                <button className="link" onClick={() => removeMember(m.userId, m.displayName)}>
+                  Remover
+                </button>
+              )}
             </div>
           ))}
           <button className="btn btn-primary full" disabled={busy} onClick={makeInvite}>
@@ -160,6 +196,9 @@ function SharingSection() {
             }}
           >
             Sincronizar agora
+          </button>
+          <button className="btn btn-danger full" onClick={leaveOrDelete}>
+            {amOwner ? 'Apagar Casa do servidor' : 'Sair desta Casa'}
           </button>
         </>
       )}
