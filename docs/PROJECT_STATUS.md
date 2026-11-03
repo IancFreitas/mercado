@@ -24,7 +24,7 @@
 | Validação em 2 iPhones | Execução manual do roteiro `TEST_PLAN.md §3` |
 
 ## PRs
-- Ver PR aberto da branch `claude/dazzling-edison-3zl5du` → `main` (rascunho até a validação física).
+- [IancFreitas/mercado#1](https://github.com/IancFreitas/mercado/pull/1) — rascunho até a validação física em iPhones.
 
 ## Testes executados (2026-11-03)
 | Suíte | Resultado |
