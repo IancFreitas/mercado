@@ -4,6 +4,8 @@ Assistente de compras, despensa e preços para a sua Casa — **PWA local-first 
 iPhone**, sem App Store, sem IA paga, funcionando offline e com compartilhamento
 seguro entre moradores.
 
+> **App:** https://iancfreitas.github.io/mercado/ (abra no Safari do iPhone › Compartilhar › Adicionar à Tela de Início)
+>
 > **Estado atual:** Fase 1 (fundação + sincronização). Ver [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
 
 ## O que já funciona
