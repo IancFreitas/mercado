@@ -37,8 +37,7 @@ O código de 6 dígitos é digitado dentro do PWA. Exige template de e-mail com 
 
 ## ADR-006 — GitHub Pages para hospedagem
 Estático, HTTPS, gratuito. Sem cabeçalhos HTTP próprios → CSP via `<meta>`
-(aplicada só no build). Workflow de deploy é **manual** (`workflow_dispatch`) e
-só deve ser usado após aprovação (publicação pública).
+(aplicada só no build). Publicação aprovada em 2026-11-03; deploy a cada push na `main`.
 
 ## ADR-007 — Exclusão lógica e conflitos visíveis
 Para cumprir “nenhuma perda silenciosa”: deletes são `deleted: true` (reversíveis)
@@ -73,4 +72,4 @@ associação e `user_id = auth.uid()`. Motivo: uma op ruim não pode travar a Ca
 O repositório é privado; GitHub Pages em repo privado exige plano pago. Opções:
 (a) tornar o repositório público (não há segredos; a publishable key é pública);
 (b) Cloudflare Pages / Netlify (gratuitos, aceitam repo privado; exigem conta);
-(c) GitHub Pro. **Decisão pendente do responsável.**
+(c) GitHub Pro. **Decisão (2026-11-03): (a) — repositório público + GitHub Pages**, deploy automático a cada push na `main`.
