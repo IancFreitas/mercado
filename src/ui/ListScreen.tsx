@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../app/AppContext';
 import { findDuplicates } from '../db/repo';
@@ -16,7 +16,7 @@ export function useDefaultList() {
   );
 }
 
-export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty: number } | null }) {
+export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty: number; key: string } | null }) {
   const { s, session, toast } = useApp();
   const hid = session.householdId!;
   const list = useDefaultList();
@@ -37,17 +37,24 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
   const [more, setMore] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [showRemoved, setShowRemoved] = useState(false);
-  const handledLink = useRef(false);
+  const [linkAdd, setLinkAdd] = useState<{ name: string; qty: number } | null>(null);
 
-  // Deep link (Atalhos/Siri): #/lista?add=leite&qtd=2
+  // Deep link (Atalhos/Siri): #/lista?add=leite&qtd=2 — pede confirmação, pois
+  // qualquer página/mensagem pode abrir esse link (QA-15).
+  const linkKey = deepLinkAdd?.key ?? '';
   useEffect(() => {
-    if (!deepLinkAdd || !list || handledLink.current) return;
-    handledLink.current = true;
-    void s.repo.addItem(hid, list.id, { name: deepLinkAdd.name, quantity: deepLinkAdd.qty, source: 'atalho' }).then((r) => {
-      toast(r.merged ? `${r.item.name}: quantidade atualizada` : `${r.item.name} adicionado`);
-      history.replaceState(null, '', '#/lista');
-    });
-  }, [deepLinkAdd, list, hid, s.repo, toast]);
+    if (!deepLinkAdd) return;
+    setLinkAdd({ name: deepLinkAdd.name, qty: deepLinkAdd.qty });
+    history.replaceState(null, '', '#/lista');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkKey]);
+
+  async function confirmLinkAdd() {
+    if (!linkAdd || !list) return;
+    const r = await s.repo.addItem(hid, list.id, { name: linkAdd.name, quantity: linkAdd.qty, source: 'atalho' });
+    setLinkAdd(null);
+    toast(r.merged ? `${r.item.name}: quantidade atualizada` : `${r.item.name} adicionado`);
+  }
 
   const active = items.filter((i) => !i.deleted);
   const pending = active.filter((i) => !i.checked);
@@ -112,6 +119,18 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
           </div>
         )}
       </form>
+
+      {linkAdd && (
+        <div className="banner" role="alertdialog" aria-label="Confirmar item do atalho" data-testid="deeplink-confirm">
+          Adicionar <strong>{linkAdd.name}</strong> ({formatQty(linkAdd.qty, 'un')}) à lista?{' '}
+          <button className="link" onClick={confirmLinkAdd}>
+            Adicionar
+          </button>
+          <button className="link" onClick={() => setLinkAdd(null)}>
+            Ignorar
+          </button>
+        </div>
+      )}
 
       {conflicts.length > 0 && (
         <div className="banner banner-warn">

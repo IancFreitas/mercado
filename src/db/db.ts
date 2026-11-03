@@ -4,8 +4,8 @@
  * Estratégia de migração: cada alteração de esquema cria uma nova chamada
  * `this.version(N)` — versões antigas NUNCA são editadas depois de publicadas.
  * Dados que precisarem de transformação usam `.upgrade(tx => ...)`.
- * O teste tests/unit/db-migrations.test.ts garante que um banco v1 abre e é
- * atualizado sem perda.
+ * Os testes em tests/unit/backup-db.test.ts ("migrações do banco local")
+ * garantem que um banco v1 abre e é atualizado para a versão atual sem perda.
  */
 import Dexie, { type Table } from 'dexie';
 import type {
@@ -23,6 +23,15 @@ export interface OutboxEntry {
   createdAt: string;
   attempts: number;
   lastError?: string;
+}
+
+/** Operação recusada de forma permanente pelo servidor (não bloqueia a fila — QA-08). */
+export interface RejectedOp {
+  id?: number;
+  householdId: string;
+  op: SyncOp;
+  rejectedAt: string;
+  reason: string;
 }
 
 export interface KV {
@@ -60,6 +69,11 @@ export const DB_SCHEMA_V1: Record<string, string> = {
   kv: 'key',
 };
 
+/** v2: fila de operações rejeitadas pelo servidor. */
+export const DB_SCHEMA_V2: Record<string, string> = {
+  rejectedOps: '++id, householdId',
+};
+
 export class PantryDB extends Dexie {
   households!: Table<EntityMap['households'], string>;
   stores!: Table<EntityMap['stores'], string>;
@@ -76,10 +90,12 @@ export class PantryDB extends Dexie {
   conflicts!: Table<ConflictRecord, string>;
   backups!: Table<BackupMetadata, string>;
   kv!: Table<KV, string>;
+  rejectedOps!: Table<RejectedOp, number>;
 
   constructor(name = 'smart-pantry') {
     super(name);
     this.version(1).stores(DB_SCHEMA_V1);
+    this.version(2).stores(DB_SCHEMA_V2);
   }
 
   entityTable(entity: SyncEntity): Table<Record<string, unknown> & { id: string }, string> {

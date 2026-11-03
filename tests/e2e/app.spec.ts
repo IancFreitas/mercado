@@ -49,9 +49,14 @@ test('funciona offline após primeira visita (service worker)', async ({ page, c
 test('deep link de Atalhos adiciona item (#/lista?add=)', async ({ page }) => {
   await createHouse(page);
   await page.goto('/#/lista?add=Caf%C3%A9&qtd=2');
+  await page.getByTestId('deeplink-confirm').getByRole('button', { name: 'Adicionar' }).click();
   await expect(page.getByTestId('pending-list').getByText('Café')).toBeVisible();
   await expect(page.getByTestId('pending-list').getByText(/2×/)).toBeVisible();
   await expect(page).toHaveURL(/#\/lista$/);
+  // Sem confirmação, nada é gravado (QA-15)
+  await page.goto('/#/lista?add=Intruso');
+  await page.getByTestId('deeplink-confirm').getByRole('button', { name: 'Ignorar' }).click();
+  await expect(page.getByText('Intruso')).toHaveCount(0);
 });
 
 test('backup: exportar e restaurar em outro "aparelho"', async ({ page, browser }) => {

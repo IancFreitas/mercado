@@ -89,12 +89,12 @@ describe('Supabase: RLS e RPCs', () => {
   });
 
   it('não-membro não escreve em outra Casa (RPC nem insert direto)', async () => {
-    await expect(as(AMIGO, `select * from public.push_ops($1, $2::jsonb)`, [H1, JSON.stringify([op(H1)])])).rejects.toThrow(/row-level security/);
+    await expect(as(AMIGO, `select * from public.push_ops($1, $2::jsonb)`, [H1, JSON.stringify([op(H1)])])).rejects.toThrow(/forbidden/);
     const o = op(H1);
     await expect(
       as(AMIGO, `insert into public.sync_ops(household_id, op_id, entity, entity_id, hlc, device_id, fields, base)
                  values ($1, $2, 'shoppingListItems', $2, $3, 'x', '{}', '{}')`, [H1, o.opId, o.hlc]),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied/);
   });
 
   it('operações com householdId diferente do lote são descartadas', async () => {
@@ -108,7 +108,12 @@ describe('Supabase: RLS e RPCs', () => {
     await expect(
       as(IAN, `insert into public.sync_ops(household_id, op_id, entity, entity_id, hlc, device_id, fields, base, user_id)
                values ($1, $2, 'shoppingListItems', $2, $3, 'x', '{}', '{}', $4)`, [H1, o.opId, o.hlc, FER]),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied/);
+    // via push_ops o user_id é sempre auth.uid()
+    const o2 = op(H1);
+    await as(IAN, `select * from public.push_ops($1, $2::jsonb)`, [H1, JSON.stringify([{ ...o2, userId: FER, user_id: FER }])]);
+    const r = await db.query<{ user_id: string }>(`select user_id from public.sync_ops where op_id = $1`, [o2.opId]);
+    expect(r.rows[0]!.user_id).toBe(IAN);
   });
 
   it('log é imutável (sem UPDATE/DELETE)', async () => {
@@ -164,7 +169,8 @@ describe('Supabase: RLS e RPCs', () => {
 
   it('valida formato da operação no banco', async () => {
     const bad = { ...op(H1), entity: 'users' };
-    await expect(as(IAN, `select * from public.push_ops($1, $2::jsonb)`, [H1, JSON.stringify([bad])])).rejects.toThrow(/check constraint/);
+    const acc = await as(IAN, `select * from public.push_ops($1, $2::jsonb) as op_id`, [H1, JSON.stringify([bad])]);
+    expect(acc).toHaveLength(0);
   });
 
   it('dono pode apagar a Casa inteira (LGPD)', async () => {

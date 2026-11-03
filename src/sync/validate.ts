@@ -40,7 +40,9 @@ export function validateOp(raw: unknown): SyncOp {
     if (!(k in fields)) throw new Error('op: base sem campo correspondente');
     if (v !== null && !isValidHlc(v)) throw new Error('op: base inválida');
   }
-  if (JSON.stringify(raw).length > MAX_OP_BYTES) throw new Error('op: muito grande');
+  if (new TextEncoder().encode(JSON.stringify(fields) + JSON.stringify(base)).length > MAX_OP_BYTES) throw new Error('op: muito grande');
+  // O nó do HLC deve ser o próprio aparelho (QA-19; mesma regra no servidor).
+  if (hlc.split(':')[2] !== deviceId) throw new Error('op: nó do HLC difere do aparelho');
   const op: SyncOp = {
     opId,
     householdId,

@@ -80,7 +80,8 @@ describe('migrações do banco local', () => {
     legacy.close();
     const db = new PantryDB(name);
     await db.open();
-    expect(db.verno).toBeGreaterThanOrEqual(1);
+    expect(db.verno).toBe(2);
+    expect(await db.rejectedOps.count()).toBe(0); // tabela da v2 criada na atualização
     expect(await db.getKV('x')).toBe(42);
   });
 

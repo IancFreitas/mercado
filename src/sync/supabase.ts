@@ -18,7 +18,9 @@ export function validateConfig(c: Partial<SupabaseConfig>): SupabaseConfig | nul
   if (!c.url || !c.anonKey) return null;
   try {
     const u = new URL(c.url);
-    if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') return null;
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    // A CSP do build só libera *.supabase.co (QA-17); outros hosts falhariam em silêncio.
+    if (!local && (u.protocol !== 'https:' || !u.hostname.endsWith('.supabase.co'))) return null;
   } catch {
     return null;
   }

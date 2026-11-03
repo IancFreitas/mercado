@@ -27,7 +27,9 @@ export function App() {
   }
 
   const addParam = route.params.get('add');
-  const deepLinkAdd = addParam ? { name: addParam.slice(0, 80), qty: Number(route.params.get('qtd') ?? '1') || 1 } : null;
+  const deepLinkAdd = addParam
+    ? { name: addParam.slice(0, 80), qty: Number(route.params.get('qtd') ?? '1') || 1, key: `${route.seq}|${addParam}` }
+    : null;
 
   return (
     <div className="app">

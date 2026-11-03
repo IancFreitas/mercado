@@ -27,4 +27,8 @@ export class NetworkError extends Error {
 }
 
 export const MAX_OPS_PER_PUSH = 200;
-export const MAX_OP_BYTES = 16 * 1024;
+/**
+ * Limite de fields+base em JSON no cliente. O servidor aceita até 16 KiB do
+ * texto jsonb (que inclui espaços extras) — a margem 2× evita divergência (QA-09).
+ */
+export const MAX_OP_BYTES = 8 * 1024;

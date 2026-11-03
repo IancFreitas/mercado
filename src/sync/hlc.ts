@@ -46,7 +46,8 @@ export class HlcClock {
     initial?: string,
   ) {
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(node)) throw new Error('deviceId inválido para HLC');
-    this.last = initial ? parse(initial) : { ms: 0, counter: 0, node };
+    // Carimbo salvo inválido (ex.: corrompido) não pode impedir o app de abrir (QA-10).
+    this.last = initial && isValidHlc(initial) ? { ...parse(initial), node } : { ms: 0, counter: 0, node };
   }
 
   /** Gera um novo carimbo para um evento local. */
@@ -79,7 +80,24 @@ export class HlcClock {
     else if (ms === this.last.ms) counter = this.last.counter + 1;
     else if (ms === r.ms) counter = r.counter + 1;
     else counter = 0;
+    if (counter > MAX_COUNTER) {
+      // QA-10: nunca produzir contador com mais de 6 dígitos.
+      this.last = { ms: ms + 1, counter: 0, node: this.node };
+      return;
+    }
     this.last = { ms, counter, node: this.node };
+  }
+
+  /**
+   * Garante que o próximo tick seja maior que `h`, SEM limite de deriva.
+   * Usado para carimbos já confiáveis (o próprio relógio salvo por outra aba,
+   * ou a versão atual de um campo que vamos sobrescrever — QA-06/QA-11).
+   */
+  observe(h: string): void {
+    const r = parse(h);
+    if (r.ms > this.last.ms || (r.ms === this.last.ms && r.counter > this.last.counter)) {
+      this.last = r.counter >= MAX_COUNTER ? { ms: r.ms + 1, counter: 0, node: this.node } : { ms: r.ms, counter: r.counter, node: this.node };
+    }
   }
 
   current(): string {

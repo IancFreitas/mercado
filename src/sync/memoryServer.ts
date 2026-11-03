@@ -13,6 +13,7 @@
 import type { SyncOp } from '../domain/types';
 import { ForbiddenError, MAX_OPS_PER_PUSH, NetworkError, type SyncTransport } from './transport';
 import { validateOp } from './validate';
+import { MAX_DRIFT_MS, parse } from './hlc';
 
 interface Invite {
   codeHash: string;
@@ -25,6 +26,7 @@ interface Invite {
 export class MemorySyncServer {
   private seq = 0;
   private ops: (SyncOp & { seq: number; userId: string })[] = [];
+  /** Unicidade por Casa: `${householdId}|${opId}` (QA-07). */
   private opIds = new Set<string>();
   private members = new Map<string, Set<string>>(); // householdId → userIds
   private invites: Invite[] = [];
@@ -62,12 +64,20 @@ export class MemorySyncServer {
     if (!this.online) throw new NetworkError();
     if (!this.isMember(householdId, userId)) throw new ForbiddenError();
     if (ops.length > MAX_OPS_PER_PUSH) throw new Error('Lote muito grande');
+    // Mesmas regras de push_ops: rejeição POR OPERAÇÃO, nunca do lote inteiro (QA-08).
     const accepted: string[] = [];
     for (const raw of ops) {
-      const op = validateOp(raw);
-      if (op.householdId !== householdId) throw new ForbiddenError('Operação para outra Casa');
-      if (!this.opIds.has(op.opId)) {
-        this.opIds.add(op.opId);
+      let op: SyncOp;
+      try {
+        op = validateOp(raw);
+      } catch {
+        continue;
+      }
+      if (op.householdId !== householdId) continue;
+      if (parse(op.hlc).ms > this.now() + MAX_DRIFT_MS) continue; // QA-05
+      const key = `${householdId}|${op.opId}`;
+      if (!this.opIds.has(key)) {
+        this.opIds.add(key);
         this.ops.push({ ...op, seq: ++this.seq, userId });
       }
       accepted.push(op.opId);

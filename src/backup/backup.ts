@@ -19,7 +19,8 @@ import type { PantryDB } from '../db/db';
 import { SYNC_ENTITIES, type SyncEntity, type SyncOp } from '../domain/types';
 import { mergeRecords, type AnyRecord } from '../sync/merge';
 import { isUuid } from '../sync/validate';
-import { isValidHlc, parse } from '../sync/hlc';
+import { MAX_DRIFT_MS, isValidHlc, parse } from '../sync/hlc';
+import { validateOp } from '../sync/validate';
 
 export const BACKUP_FORMAT = 'smart-pantry-backup';
 export const BACKUP_VERSION = 1;
@@ -86,6 +87,7 @@ export async function verifyBackup(raw: unknown): Promise<BackupFile> {
   if (!isUuid(b.householdId)) throw new BackupError('Backup sem Casa válida');
   if (!b.tables || typeof b.tables !== 'object') throw new BackupError('Backup sem dados');
   let count = 0;
+  const nowMs = Date.now();
   for (const [entity, rows] of Object.entries(b.tables)) {
     if (!(SYNC_ENTITIES as readonly string[]).includes(entity)) throw new BackupError(`Tabela desconhecida: ${entity}`);
     if (!Array.isArray(rows)) throw new BackupError('Backup corrompido');
@@ -93,12 +95,33 @@ export async function verifyBackup(raw: unknown): Promise<BackupFile> {
       count++;
       if (!r || !isUuid(r.id) || r.householdId !== b.householdId) throw new BackupError('Registro de outra Casa ou inválido no backup');
       if (!r._v || typeof r._v !== 'object' || !Object.values(r._v).every(isValidHlc)) throw new BackupError('Metadados de versão inválidos');
+      validateRecord(entity as SyncEntity, r, b.householdId, nowMs);
     }
   }
   if (count > MAX_RECORDS) throw new BackupError('Backup grande demais');
   const expected = await checksumOf(b as BackupFile);
   if (b.checksum !== expected) throw new BackupError('Falha na verificação de integridade (checksum) — arquivo alterado ou corrompido');
   return b as BackupFile;
+}
+
+const FIELD_RE = /^[a-zA-Z][a-zA-Z0-9]{0,40}$/;
+const RECORD_KEYS_ALLOWED = new Set(['id', 'householdId', '_v']);
+
+/**
+ * O checksum só detecta corrupção — qualquer um pode recalculá-lo. Por isso
+ * cada registro é validado como dado não confiável (QA-12).
+ */
+function validateRecord(entity: SyncEntity, r: AnyRecord, householdId: string, nowMs: number): void {
+  if (entity === 'households' && r.id !== householdId) throw new BackupError('Registro de Casa inconsistente no backup');
+  for (const k of Object.keys(r)) {
+    if (!RECORD_KEYS_ALLOWED.has(k) && !FIELD_RE.test(k)) throw new BackupError(`Campo inválido no backup: ${k.slice(0, 40)}`);
+  }
+  for (const [k, h] of Object.entries(r._v)) {
+    if (!FIELD_RE.test(k) || k === 'id' || k === 'householdId') throw new BackupError('Metadados de versão inválidos');
+    // QA-06: versões "do futuro" congelariam o campo — recusa.
+    if (parse(h).ms > nowMs + MAX_DRIFT_MS) throw new BackupError('Backup com datas no futuro — relógio do aparelho de origem incorreto?');
+  }
+  if (JSON.stringify(r).length > 64 * 1024) throw new BackupError('Registro grande demais no backup');
 }
 
 /** Gera operações que reproduzem exatamente as versões (HLC) de um registro. */
@@ -156,7 +179,13 @@ export async function restoreBackup(db: PantryDB, raw: unknown, expectHousehold?
         await t.put(merged);
         // Enfileira "replay" com as versões originais, para que dados restaurados
         // em modo local cheguem ao servidor quando a Casa for conectada.
-        for (const op of replayOps(e, merged)) {
+        for (const raw of replayOps(e, merged)) {
+          let op: SyncOp;
+          try {
+            op = validateOp(raw); // QA-12: nada entra na outbox sem validação
+          } catch (err) {
+            throw new BackupError(`Backup contém dados inválidos (${(err as Error).message})`);
+          }
           await db.outbox.add({ householdId: b.householdId, op, createdAt: new Date().toISOString(), attempts: 0 });
         }
       }

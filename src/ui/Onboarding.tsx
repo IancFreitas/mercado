@@ -65,6 +65,7 @@ export function Onboarding() {
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 if (!f) return;
+                if (f.size > 50 * 1024 * 1024) return toast('Arquivo grande demais');
                 try {
                   const r = await restoreBackup(s.db, JSON.parse(await f.text()));
                   await updateSession({ householdId: r.householdId, displayName: name || 'Eu', householdConnected: false });

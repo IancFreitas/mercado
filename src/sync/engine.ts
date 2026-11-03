@@ -12,9 +12,9 @@
  */
 import type { PantryDB } from '../db/db';
 import { SYNC_ENTITIES, type SyncEntity, type SyncOp } from '../domain/types';
-import { HlcClock } from './hlc';
+import { HlcClock, MAX_DRIFT_MS, isValidHlc, parse } from './hlc';
 import { applyOp, type AnyRecord } from './merge';
-import { ForbiddenError, MAX_OPS_PER_PUSH, type SyncTransport } from './transport';
+import { ForbiddenError, MAX_OPS_PER_PUSH, NetworkError, type SyncTransport } from './transport';
 import { validateOp } from './validate';
 
 export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error' | 'forbidden' | 'local-only';
@@ -23,6 +23,8 @@ export interface SyncReport {
   pushed: number;
   pulled: number;
   applied: number;
+  /** Ops recusadas pelo servidor e movidas para rejectedOps. */
+  deadLettered: number;
   conflicts: number;
   rejected: number;
 }
@@ -43,7 +45,8 @@ export class SyncEngine {
   private readonly now: () => number;
   private readonly uuid: () => string;
   private readonly pullLimit: number;
-  private running: Promise<SyncReport> | null = null;
+  /** Um ciclo por Casa (QA-14). */
+  private running = new Map<string, Promise<SyncReport>>();
   private listeners = new Set<() => void>();
   status: SyncStatus = 'local-only';
   lastError: string | null = null;
@@ -93,7 +96,7 @@ export class SyncEngine {
   }
 
   private tables() {
-    return [...SYNC_ENTITIES.map((e) => this.db.entityTable(e)), this.db.outbox, this.db.conflicts, this.db.kv];
+    return [...SYNC_ENTITIES.map((e) => this.db.entityTable(e)), this.db.outbox, this.db.conflicts, this.db.kv, this.db.rejectedOps];
   }
 
   /**
@@ -111,6 +114,14 @@ export class SyncEngine {
       const table = this.db.entityTable(entity);
       const current = (await table.get(entityId)) as AnyRecord | undefined;
       if (current && current.householdId !== householdId) throw new ForbiddenError('Registro pertence a outra Casa');
+      // QA-11: outra aba pode ter avançado o relógio salvo — incorpora antes do tick.
+      const saved = await this.db.getKV<string>(CLOCK_KEY);
+      if (saved && isValidHlc(saved)) this.clock.observe(saved);
+      // QA-06: a nova versão precisa superar a versão atual de cada campo tocado.
+      for (const f of Object.keys(fields)) {
+        const v = current?._v?.[f];
+        if (v && isValidHlc(v)) this.clock.observe(v);
+      }
       const hlc = this.clock.tick();
       const base: Record<string, string | null> = {};
       for (const f of Object.keys(fields)) base[f] = current?._v?.[f] ?? null;
@@ -139,15 +150,19 @@ export class SyncEngine {
 
   /** Executa um ciclo push+pull. Chamadas concorrentes reutilizam o ciclo em andamento. */
   sync(householdId: string): Promise<SyncReport> {
-    if (this.running) return this.running;
-    this.running = this.doSync(householdId).finally(() => {
-      this.running = null;
-    });
-    return this.running;
+    const cur = this.running.get(householdId);
+    if (cur) return cur;
+    const p = this.doSync(householdId).finally(() => this.running.delete(householdId));
+    this.running.set(householdId, p);
+    return p;
+  }
+
+  async rejectedCount(householdId: string): Promise<number> {
+    return this.db.rejectedOps.where('householdId').equals(householdId).count();
   }
 
   private async doSync(householdId: string): Promise<SyncReport> {
-    const report: SyncReport = { pushed: 0, pulled: 0, applied: 0, conflicts: 0, rejected: 0 };
+    const report: SyncReport = { pushed: 0, pulled: 0, applied: 0, conflicts: 0, rejected: 0, deadLettered: 0 };
     const t = this.transport;
     if (!t) {
       this.setStatus('local-only');
@@ -155,8 +170,16 @@ export class SyncEngine {
     }
     this.setStatus('syncing');
     try {
-      await this.pushAll(t, householdId, report);
+      // QA-08: falha não transitória no envio não pode impedir o recebimento.
+      let pushError: unknown = null;
+      try {
+        await this.pushAll(t, householdId, report);
+      } catch (e) {
+        if (e instanceof ForbiddenError || e instanceof NetworkError || (e instanceof Error && e.name === 'NetworkError')) throw e;
+        pushError = e;
+      }
       await this.pullAll(t, householdId, report);
+      if (pushError) throw pushError;
       this.lastSyncAt = this.now();
       this.setStatus('idle');
     } catch (e) {
@@ -188,9 +211,21 @@ export class SyncEngine {
       }
       const ok = new Set(accepted);
       const done = batch.filter((b) => ok.has(b.op.opId)).map((b) => b.seqLocal!);
-      await this.db.outbox.bulkDelete(done);
+      const refused = batch.filter((b) => !ok.has(b.op.opId));
+      // O servidor é determinístico: op não aceita = recusa permanente. Vai para
+      // a fila de rejeitadas (visível em Casa) em vez de travar a outbox (QA-08).
+      const nowIso = new Date(this.now()).toISOString();
+      await this.db.transaction('rw', this.db.outbox, this.db.rejectedOps, async () => {
+        await this.db.outbox.bulkDelete([...done, ...refused.map((b) => b.seqLocal!)]);
+        if (refused.length) {
+          await this.db.rejectedOps.bulkAdd(
+            refused.map((b) => ({ householdId, op: b.op, rejectedAt: nowIso, reason: 'recusada pelo servidor' })),
+          );
+        }
+      });
       report.pushed += done.length;
-      if (done.length < batch.length) throw new Error('Servidor não aceitou todas as operações');
+      report.deadLettered += refused.length;
+      if (refused.length) this.emit();
     }
   }
 
@@ -222,6 +257,11 @@ export class SyncEngine {
         }
         if (typeof op.seq === 'number' && op.seq > cursor) cursor = op.seq;
         if (op.householdId !== householdId) {
+          if (report) report.rejected++;
+          continue;
+        }
+        // QA-06: carimbo muito no futuro "congelaria" o campo para sempre — rejeita.
+        if (parse(op.hlc).ms > this.now() + MAX_DRIFT_MS) {
           if (report) report.rejected++;
           continue;
         }

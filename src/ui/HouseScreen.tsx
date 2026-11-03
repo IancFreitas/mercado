@@ -5,6 +5,7 @@ import { saveConfig } from '../app/services';
 import { exportBackup, restoreBackup } from '../backup/backup';
 import { SupabaseBackend, validateConfig } from '../sync/supabase';
 import { Section } from './components';
+import { normalizeName } from '../domain/text';
 
 export function HouseScreen() {
   const { s, session, updateSession, toast } = useApp();
@@ -43,6 +44,7 @@ export function HouseScreen() {
 
       <SharingSection />
       <ConflictsSection />
+      <RejectedSection />
       <BackupSection />
 
       <Section title="Privacidade" footer="Os dados ficam neste aparelho (IndexedDB). Se o compartilhamento estiver ativo, as alterações também são enviadas ao seu projeto Supabase. Detalhes em docs/SECURITY.md.">
@@ -317,7 +319,8 @@ function ConflictsSection() {
           <button
             className="link"
             onClick={async () => {
-              await s.engine.mutate(hid, c.entity, c.entityId, { [c.field]: c.loserValue });
+              const extra = c.field === 'name' && typeof c.loserValue === 'string' ? { normName: normalizeName(c.loserValue) } : {};
+              await s.engine.mutate(hid, c.entity, c.entityId, { [c.field]: c.loserValue, ...extra });
               await s.db.conflicts.update(c.id, { resolved: true });
               toast('Valor restaurado');
             }}
@@ -329,6 +332,37 @@ function ConflictsSection() {
           </button>
         </div>
       ))}
+    </Section>
+  );
+}
+
+function RejectedSection() {
+  const { s, session, toast } = useApp();
+  const hid = session.householdId!;
+  const rejected = useLiveQuery(() => s.db.rejectedOps.where('householdId').equals(hid).toArray(), [hid], []);
+  if (rejected.length === 0) return null;
+  return (
+    <Section
+      title="Alterações recusadas"
+      footer="O servidor recusou estas alterações (dados inválidos ou fora das regras). Elas continuam aplicadas só neste aparelho e não bloqueiam a sincronização das demais."
+    >
+      {rejected.slice(0, 20).map((r) => (
+        <div className="row muted" key={r.id}>
+          <span className="grow">
+            {r.op.entity} · {Object.keys(r.op.fields).join(', ')}
+          </span>
+          <span>{new Date(r.rejectedAt).toLocaleString('pt-BR')}</span>
+        </div>
+      ))}
+      <button
+        className="btn btn-plain full"
+        onClick={async () => {
+          await s.db.rejectedOps.where('householdId').equals(hid).delete();
+          toast('Lista de recusadas limpa');
+        }}
+      >
+        Dispensar
+      </button>
     </Section>
   );
 }
