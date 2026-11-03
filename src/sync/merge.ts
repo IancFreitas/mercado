@@ -60,7 +60,9 @@ export function applyOp(current: AnyRecord | undefined, op: SyncOp, nowIso: stri
     const opWins = curHlc === undefined || compare(op.hlc, curHlc) > 0;
     // Concorrência: o autor da operação não estava vendo a versão atual.
     // Edições do mesmo dispositivo são sempre sequenciais, nunca concorrentes.
+    // base === hlc marca uma operação de "replay" (restauração de backup): nunca é conflito.
     const concurrent =
+      base !== op.hlc &&
       !NO_CONFLICT_FIELDS.has(field) &&
       curHlc !== undefined &&
       base !== curHlc &&
