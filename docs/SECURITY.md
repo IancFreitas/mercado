@@ -9,13 +9,13 @@
 | # | Ameaça | Controle | Verificação |
 |---|---|---|---|
 | T1 | Usuário de outra Casa lê dados | RLS `is_member(household_id)` em `sync_ops`, `households`, `household_members` | `tests/unit/supabase-rls.test.ts` |
-| T2 | Usuário escreve em Casa alheia | RLS no INSERT + `push_ops` SECURITY INVOKER; ops com householdId divergente descartadas | idem |
-| T3 | Forjar autoria (`user_id`) | `with check (user_id = auth.uid())` | idem |
+| T2 | Usuário escreve em Casa alheia | INSERT direto revogado; `push_ops` (SECURITY DEFINER) exige `is_member`; ops com householdId divergente não aceitas | idem + banco real |
+| T3 | Forjar autoria (`user_id`) | `push_ops` grava sempre `auth.uid()` | idem |
 | T4 | Alterar/apagar histórico | sem UPDATE/DELETE em `sync_ops` (grants revogados) | idem |
 | T5 | Auto-inclusão numa Casa | sem INSERT direto em `household_members`; só via RPC de convite | idem |
 | T6 | Adivinhar convite | 80 bits, 48 h, 1 uso, só hash SHA-256 armazenado, rate limit de criação | idem |
 | T7 | Servidor malicioso/comprometido injeta dados de outra Casa | cliente valida toda op e descarta householdId divergente | `sync-engine.test.ts` |
-| T8 | Op malformada / payload gigante | validação no cliente (`validate.ts`) e CHECKs no banco (16 KB, regex de HLC, entidades) | `hlc-merge.test.ts`, RLS |
+| T8 | Op malformada / payload gigante / HLC do futuro | validação no cliente (`validate.ts`) e no servidor (`op_invalid_reason`), rejeição por op | `hlc-merge`, `qa-*` |
 | T9 | Backup adulterado/de outra Casa | checksum SHA-256, verificação de householdId por registro, versão | `backup-db.test.ts` |
 | T10 | XSS | React escapa conteúdo; CSP `script-src 'self'`; sem `dangerouslySetInnerHTML` | revisão + E2E da CSP |
 | T11 | Vazamento de segredo | só anon key (pública por design); `.env*` no `.gitignore`; nunca service_role | revisão |

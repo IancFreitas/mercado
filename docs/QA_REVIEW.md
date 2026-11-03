@@ -160,3 +160,36 @@ Cada item está coberto por teste de regressão nos arquivos `qa-*`, salvo indic
 - Não há teste automatizado das políticas do Realtime (exige o servidor Realtime).
 - Não há e2e com dois navegadores contra um Supabase real, nem de múltiplas abas (QA-11) no navegador.
 - Não há teste de migração do esquema Dexie v1 → v2. O comentário em `db.ts` cita `tests/unit/db-migrations.test.ts`, que **não existe**.
+
+## 6. Status das correções (Agente 4 — Dados e Sincronização, 2026-11-03)
+
+Correções feitas por agente diferente do revisor; verificadas pelos testes do QA
+(os `it.fails` correspondentes viraram `it('CORRIGIDO …')`). Suíte: **100 passam, 1 falha esperada (QA-13)**.
+
+| ID | Status | Como |
+|----|--------|------|
+| QA-01 | ✅ Corrigido | `remove_member` recusa saída do único dono (`last owner`); `transfer_ownership`; último membro a sair apaga a Casa |
+| QA-02 | ✅ Corrigido | convite exige autor ainda membro; convites do removido são revogados |
+| QA-03 | ✅ Corrigido | já-membro não consome uso |
+| QA-04 | ✅ Corrigido | `INSERT` revogado; `push_ops` SECURITY DEFINER com `is_member` e `user_id = auth.uid()` |
+| QA-05 | ✅ Corrigido | servidor não aceita HLC > agora + 24 h |
+| QA-06 | ✅ Corrigido | cliente rejeita ops > 24 h no futuro; `mutate` observa a versão atual do campo antes do tick; backup com datas futuras é recusado |
+| QA-07 | ✅ Corrigido (por design) | unicidade `(household_id, op_id)`; "squat" em outra Casa não afeta |
+| QA-08 | ✅ Corrigido | rejeição **por operação** no servidor; cliente move recusadas para `rejectedOps` (Dexie v2, visível em Casa) e o pull sempre roda |
+| QA-09 | ✅ Corrigido | servidor mede `octet_length(texto)` ≤ 16 KiB; cliente limita fields+base a 8 KiB (UTF-8) |
+| QA-10 | ✅ Corrigido | `receive()` nunca estoura o contador; relógio salvo inválido é descartado |
+| QA-11 | ✅ Corrigido | `mutate` incorpora o relógio salvo no IndexedDB dentro da transação |
+| QA-12 | ✅ Corrigido | validação por registro (campos, `_v`, households.id, tamanho) e `validateOp` em todo replay; backup inválido é recusado inteiro |
+| QA-13 | 📄 Documentado | estado final converge; o conjunto de *alertas* pode diferir entre aparelhos (KNOWN_ISSUES KI-27) |
+| QA-14 | ✅ Corrigido | ciclo de sync por Casa (`Map`) |
+| QA-15 | ✅ Corrigido | deep link mostra confirmação "Adicionar/Ignorar"; cada navegação é tratada (E2E cobre) |
+| QA-16 | ✅ Corrigido | limite de 50 MB também no onboarding |
+| QA-17 | ✅ Parcial | `validateConfig` só aceita `*.supabase.co` (alinhado à CSP). Clickjacking: sem `frame-ancestors` via `<meta>` — depende da hospedagem (KI-28) |
+| QA-18 | ✅ Parcial | rate limit de convites por autor; limite de Casas por usuário não implementado |
+| QA-19 | ✅ Parcial | nó do HLC = `device_id` (cliente e servidor). Supressão de alerta via `base === hlc` por membro malicioso continua possível (baixo impacto: dado converge) |
+| QA-20 | ✅ Corrigido | UI: remover morador, sair, apagar Casa no servidor |
+| QA-21 | ✅ Corrigido | "Usar outra" em `name` atualiza `normName` |
+
+Verificação adicional **no projeto Supabase real** (transação com ROLLBACK): membro
+convidado lê; usuário de outra Casa não lê, não grava (`forbidden`) e não reutiliza
+convite; anon recebe 401 em tabelas e RPCs.

@@ -29,7 +29,7 @@ solicitado no boot.
 Realtime, plano gratuito suficiente para algumas Casas. Sem servidor próprio.
 **Riscos:** projetos gratuitos são pausados após ~1 semana sem uso (reativação
 manual); limites de e-mail do SMTP padrão (configurar SMTP próprio para uso
-real). **Nenhum projeto foi criado** — requer aprovação do usuário (ver NEXT_STEPS).
+real). **Projeto criado em 2026-11-03** com autorização (`smart-pantry`, sa-east-1, Free).
 
 ## ADR-005 — Login por código OTP de e-mail (não magic link)
 Magic link abre no Safari, cuja sessão/armazenamento é separado do PWA instalado.
@@ -61,3 +61,16 @@ Vitest 3 dependia de `tinypool` com advisory crítico; Vitest 4 resolve. O npm 1
 falha ao resolver peers opcionais do Vitest 4 (`edgesOut` null) → `.npmrc` com
 `legacy-peer-deps=true`. Restam 2 advisories moderados em dependências de build
 do `vite-plugin-pwa` (workbox-build), sem impacto no código entregue ao usuário.
+
+## ADR-011 — Rejeição por operação no push (após QA)
+`push_ops` deixou de ser tudo-ou-nada: ops inválidas são simplesmente não aceitas
+e o cliente as move para `rejectedOps` (visível ao usuário). Escrita direta em
+`sync_ops` foi revogada; `push_ops` é SECURITY DEFINER com checagem explícita de
+associação e `user_id = auth.uid()`. Motivo: uma op ruim não pode travar a Casa
+(QA-08) e o lock por Casa não pode ser contornado (QA-04).
+
+## ADR-012 — Hospedagem com repositório privado
+O repositório é privado; GitHub Pages em repo privado exige plano pago. Opções:
+(a) tornar o repositório público (não há segredos; a publishable key é pública);
+(b) Cloudflare Pages / Netlify (gratuitos, aceitam repo privado; exigem conta);
+(c) GitHub Pro. **Decisão pendente do responsável.**

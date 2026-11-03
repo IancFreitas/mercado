@@ -24,9 +24,10 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
-          # Valores públicos (anon key). Configure em Settings › Secrets and variables › Actions.
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          # Valores PÚBLICOS por design (publishable key; a segurança vem do RLS).
+          # Podem ser sobrescritos em Settings › Secrets and variables › Actions › Variables.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://hgeuvqywqwwwcbqsqxax.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ym7VUoO3YivLJZ6GD0i1TA_4vxEV9rW' }}
       - run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,5 +1,14 @@
 # Configurar o Supabase (necessário apenas para compartilhar entre aparelhos)
 
+## Projeto atual (criado em 2026-11-03 com autorização do responsável)
+- Nome: `smart-pantry` · ref `hgeuvqywqwwwcbqsqxax` · região `sa-east-1` (São Paulo) · plano Free
+- URL: `https://hgeuvqywqwwwcbqsqxax.supabase.co`
+- Publishable key (pública por design): `sb_publishable_Ym7VUoO3YivLJZ6GD0i1TA_4vxEV9rW`
+- Migrações aplicadas: `init`, `realtime`, `qa_hardening` (iguais a `supabase/migrations/`)
+- **Pendente (manual, no painel):** passo 4 (template de e-mail com `{{ .Token }}`) e, para uso real, passo 6 (SMTP).
+
+## Passo a passo (para recriar ou para um amigo hospedar o próprio)
+
 > ⚠️ Criar o projeto é uma ação externa que requer a sua aprovação/conta.
 > O plano gratuito não tem custo, mas projetos inativos por ~7 dias são pausados.
 
@@ -7,8 +16,9 @@
 2. **SQL Editor** → execute, em ordem, os arquivos de `supabase/migrations/`.
    (Alternativa: `supabase db push` com a CLI.)
 3. **Authentication › Providers › Email**: habilitado (o código OTP já confirma o e-mail).
-4. **Authentication › Email Templates › Magic Link**: inclua o código, ex.:
-   `Seu código do Smart Pantry: <h2>{{ .Token }}</h2>` (o app usa o código, não o link).
+4. **Authentication › Email Templates** — em **Magic Link** *e* **Confirm signup**, inclua o código, ex.:
+   `Seu código do Smart Pantry: <h2>{{ .Token }}</h2>` (o app usa o código, não o link;
+   sem isso o e-mail chega só com um link, que abriria no Safari fora do app).
 5. **Authentication › URL Configuration**: Site URL = URL do app (GitHub Pages).
 6. (Recomendado para uso real) **SMTP próprio** — o SMTP padrão tem limite
    baixo de envios por hora.
