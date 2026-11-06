@@ -13,6 +13,18 @@ import {
 } from '../domain/types';
 import { normalizeName, sanitizeText } from '../domain/text';
 import type { SyncEngine } from '../sync/engine';
+import type { NfceQr } from '../nfce/qrcode';
+import type { Purchase } from '../domain/types';
+
+/**
+ * Id determinístico (formato UUID) a partir de Casa + chave de acesso: a mesma
+ * nota escaneada em dois aparelhos (mesmo offline) vira o MESMO registro.
+ */
+export async function purchaseIdFor(householdId: string, accessKey: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`purchase|${householdId}|${accessKey}`));
+  const h = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 const UNITS: Unit[] = ['un', 'kg', 'g', 'l', 'ml', 'pct', 'cx', 'dz'];
 
@@ -139,6 +151,48 @@ export class PantryRepo {
 
   async restoreItem(householdId: string, itemId: string): Promise<void> {
     await this.engine.mutate(householdId, 'shoppingListItems', itemId, { deleted: false, updatedBy: this.actorName() });
+  }
+
+  /** Nota já registrada nesta Casa? (bloqueio de importação duplicada) */
+  async findPurchaseByKey(householdId: string, accessKey: string): Promise<Purchase | undefined> {
+    const p = await this.db.purchases.get(await purchaseIdFor(householdId, accessKey));
+    return p && p.householdId === householdId && !p.deleted ? p : undefined;
+  }
+
+  /**
+   * Registra a nota escaneada como compra PENDENTE (itens são importados depois).
+   * Se já existir, não duplica e retorna { existing: true }.
+   */
+  async savePurchaseFromQr(householdId: string, qr: NfceQr): Promise<{ purchase: Purchase; existing: boolean }> {
+    const existing = await this.findPurchaseByKey(householdId, qr.info.key);
+    if (existing) return { purchase: existing, existing: true };
+    const { info } = qr;
+    const day = qr.offline?.day ?? 1;
+    const purchasedAt = new Date(Date.UTC(info.year, info.month - 1, day, 12)).toISOString();
+    const fields: Record<string, unknown> = {
+      accessKey: info.key,
+      purchasedAt,
+      totalCents: qr.offline?.totalCents ?? 0,
+      source: 'nfce_qr',
+      status: 'pendente',
+      issuerCnpj: info.issuerId,
+      docModel: info.model,
+      createdBy: this.actorName(),
+      deleted: false,
+    };
+    if (qr.consultUrl) fields.consultUrl = qr.consultUrl;
+    const id = await purchaseIdFor(householdId, info.key);
+    const purchase = await this.engine.mutate<Purchase>(householdId, 'purchases', id, fields);
+    return { purchase, existing: false };
+  }
+
+  async listPurchases(householdId: string): Promise<Purchase[]> {
+    const all = await this.db.purchases.where('householdId').equals(householdId).toArray();
+    return all.filter((p) => !p.deleted).sort((a, b) => (a.purchasedAt < b.purchasedAt ? 1 : -1));
+  }
+
+  async removePurchase(householdId: string, id: string): Promise<void> {
+    await this.engine.mutate(householdId, 'purchases', id, { deleted: true });
   }
 
   /** Une itens duplicados: mantém o de menor id, soma quantidades e remove os demais. */

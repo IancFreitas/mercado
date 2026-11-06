@@ -130,6 +130,15 @@ export interface Purchase extends BaseRecord {
   source: 'nfce_qr' | 'ocr' | 'manual';
   /** Registro original (HTML/texto) para auditoria — guardado apenas localmente. */
   rawRef?: string;
+  /** 'pendente' = nota escaneada, itens ainda não importados. */
+  status?: 'pendente' | 'importada';
+  /** CNPJ do emitente (da chave). */
+  issuerCnpj?: string;
+  /** '65' NFC-e, '55' NF-e. */
+  docModel?: '65' | '55';
+  /** URL (já validada como *.gov.br) para consultar a nota na SEFAZ. */
+  consultUrl?: string;
+  createdBy?: string;
 }
 
 export interface PurchaseItem extends BaseRecord {
