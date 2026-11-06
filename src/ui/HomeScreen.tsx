@@ -43,7 +43,7 @@ export function HomeScreen() {
           <button className="quick-btn" onClick={() => navigate('lista')}>
             <span aria-hidden>📝</span>Lista
           </button>
-          <button className="quick-btn" disabled title="Fase 2">
+          <button className="quick-btn" onClick={() => navigate('notas')}>
             <span aria-hidden>📷</span>Escanear NFC-e
           </button>
           <button className="quick-btn" disabled title="Fase 4">

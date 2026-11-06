@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { useApp } from '../app/AppContext';
 import { HomeScreen, PantryScreen } from './HomeScreen';
 import { HouseScreen } from './HouseScreen';
@@ -5,6 +6,9 @@ import { ListScreen } from './ListScreen';
 import { Onboarding } from './Onboarding';
 import { OfflineBanner, SyncBadge, Toast } from './components';
 import { navigate, useRoute, type Tab } from './router';
+
+// Carregada sob demanda: o leitor de QR (jsQR) não pesa na abertura do app.
+const ScanScreen = lazy(() => import('./ScanScreen').then((m) => ({ default: m.ScanScreen })));
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'inicio', label: 'Início', icon: '🏠' },
@@ -34,7 +38,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="topbar-title">{TABS.find((t) => t.id === route.tab)?.label}</span>
+        <span className="topbar-title">{route.tab === 'notas' ? 'Notas' : TABS.find((t) => t.id === route.tab)?.label}</span>
         <SyncBadge />
       </header>
       <OfflineBanner />
@@ -43,6 +47,11 @@ export function App() {
         {route.tab === 'lista' && <ListScreen deepLinkAdd={deepLinkAdd} />}
         {route.tab === 'despensa' && <PantryScreen />}
         {route.tab === 'casa' && <HouseScreen />}
+        {route.tab === 'notas' && (
+          <Suspense fallback={<p className="empty">Carregando…</p>}>
+            <ScanScreen />
+          </Suspense>
+        )}
       </main>
       <nav className="tabbar" aria-label="Navegação principal">
         {TABS.map((t) => (
