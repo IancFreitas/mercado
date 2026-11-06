@@ -87,7 +87,18 @@ Diga "E aí Siri, adicionar leite". O app abre e pede confirmação antes de gra
 | App parou de sincronizar depois de dias sem uso | O Supabase gratuito pausa após ~7 dias; Ian abre o painel e clica em **Restore** |
 | Dados sumiram ao abrir pelo Safari | Abra pelo ícone da Tela de Início |
 
+## Parte G — Notas fiscais (início da Fase 2)
+
+1. Tela **Início** › **Escanear NFC-e**.
+2. Escolha: **Escanear com a câmera** (aponte para o QR do cupom), **Ler QR de uma foto**
+   (foto já tirada) ou digite a **chave de acesso** (44 números abaixo do QR).
+3. Confira loja (CNPJ), mês, número e, em notas emitidas offline, o valor total › **Registrar nota**.
+4. Se a mesma nota já foi registrada (por você ou pela Fernanda), o app avisa e não duplica.
+5. **Abrir na SEFAZ** mostra a nota completa no site oficial.
+
+Por enquanto a nota fica com "itens pendentes": a importação dos produtos e preços é o próximo passo.
+
 ## Ainda não disponível
 
-Leitura de nota fiscal (NFC-e), despensa, histórico de preços, previsões e modo compras
+Importação dos itens da nota, despensa, histórico de preços, previsões e modo compras
 são as próximas fases. O app mostra essas áreas como "em breve".

@@ -38,6 +38,14 @@
 - **KI-29 — Avisos do Supabase Advisor** "SECURITY DEFINER executável por authenticated" (10 funções):
   intencionais — são as RPCs do app; cada uma valida `auth.uid()`/associação internamente.
 
+- **KI-40 — Câmera no PWA instalado do iPhone não testada.** Se falhar, "Ler QR de uma foto" e a
+  chave digitada continuam funcionando.
+- **KI-41 — Itens da nota ainda não são importados**: a nota fica como "itens pendentes".
+- **KI-42 — NF-e (modelo 55)** é aceita pela chave, mas a consulta pública dos itens exige CAPTCHA;
+  itens dependerão de foto/OCR ou digitação.
+- **KI-43 — Data da compra** vem da chave (mês/ano); o dia só é conhecido no QR de contingência
+  offline. Será corrigida ao importar os itens.
+
 ## Dependências
 - **KI-30** — 2 advisories *moderados* do npm em dependências de build do `vite-plugin-pwa`
   (workbox-build → glob/minimatch). Não entram no bundle entregue.
