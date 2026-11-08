@@ -24,9 +24,10 @@ Legenda: ✅ concluído · 🟡 em andamento · ⬜ não iniciado · 🔒 depend
 
 **Saída da Fase 1:** roteiro manual §3 aprovado em dois iPhones reais.
 
-## Fase 2 — Compras e despensa ⬜
-1. Decodificador local do QR/chave NFC-e (44 dígitos, DV mod 11, UF, CNPJ, AAMM, nº) + testes.
-2. Leitor de QR (getUserMedia + ZXing; BarcodeDetector indisponível no iOS).
+## Fase 2 — Compras e despensa 🟡
+1. ✅ Decodificador local do QR/chave NFC-e (v1/v2/v3, online/offline, 44 dígitos, DV mod 11, UF, CNPJ, AAMM, nº) + testes.
+2. ✅ Leitor de QR (câmera via getUserMedia + jsQR; foto; chave digitada) — 🔒 câmera no iPhone real não testada.
+   ✅ Nota registrada como compra *pendente*, id derivado da chave (sem duplicar entre aparelhos), link seguro (*.gov.br) para a SEFAZ.
 3. Abrir consulta SEFAZ no Safari + colar/compartilhar texto → parser local (classes `txtTit`, `Rqtd`, `RUN`, `RvlUnit`...); fixtures reais fornecidas por você.
 4. Fallback manual de compra; OCR local (Tesseract.js) com campos de baixa confiança.
 5. Dicionário de normalização (marcas, unidades, abreviações: "SAB OMO LQD 3L") + aliases aprendidos.

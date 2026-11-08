@@ -17,7 +17,7 @@ export type AnyRecord = Record<string, unknown> & { id: string; householdId: str
 const PROTECTED_FIELDS = new Set(['id', 'householdId', '_v']);
 
 /** Metadados/campos derivados: seguem LWW mas não geram alerta de conflito. */
-const NO_CONFLICT_FIELDS = new Set(['updatedBy', 'normName']);
+const NO_CONFLICT_FIELDS = new Set(['updatedBy', 'createdBy', 'normName']);
 
 export interface ApplyResult {
   record: AnyRecord;

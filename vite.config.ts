@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: (id: string) =>
-            id.includes('@supabase') ? 'supabase' : id.includes('node_modules') ? 'vendor' : undefined,
+            id.includes('@supabase') ? 'supabase' : id.includes('jsqr') ? 'qr' : id.includes('node_modules') ? 'vendor' : undefined,
         },
       },
     },
