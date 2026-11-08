@@ -156,3 +156,11 @@ button { cursor: pointer; }
 .camera p { color: #fff; position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.4); }
 a.btn { text-decoration: none; text-align: center; }
 .mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; }
+
+.import-box { flex-basis: 100%; width: 100%; flex-direction: column; align-items: stretch; padding: 4px 0 8px; gap: 8px; }
+.import-help { margin: 0; font-size: 14px; }
+.import-text { width: 100%; font-size: 15px; resize: vertical; }
+.import-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.import-wide { width: 100%; }
+.import-line { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: 4px 0; border-bottom: 0.5px solid var(--sep); font-size: 15px; }
+.import-box .banner ul { margin: 4px 0 0; padding-left: 18px; }

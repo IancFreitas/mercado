@@ -14,14 +14,24 @@ import {
 import { normalizeName, sanitizeText } from '../domain/text';
 import type { SyncEngine } from '../sync/engine';
 import type { NfceQr } from '../nfce/qrcode';
-import type { Purchase } from '../domain/types';
+import type { Purchase, PurchaseItem } from '../domain/types';
+import type { ParsedNfce } from '../nfce/parseSefazText';
 
 /**
  * Id determinístico (formato UUID) a partir de Casa + chave de acesso: a mesma
  * nota escaneada em dois aparelhos (mesmo offline) vira o MESMO registro.
  */
 export async function purchaseIdFor(householdId: string, accessKey: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`purchase|${householdId}|${accessKey}`));
+  return uuidFromSeed(`purchase|${householdId}|${accessKey}`);
+}
+
+/** Id determinístico de um item da nota: mesma nota + mesmo índice = mesmo registro em qualquer aparelho. */
+export async function purchaseItemIdFor(householdId: string, purchaseId: string, index: number): Promise<string> {
+  return uuidFromSeed(`purchaseItem|${householdId}|${purchaseId}|${index}`);
+}
+
+async function uuidFromSeed(seed: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed));
   const h = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
@@ -184,6 +194,65 @@ export class PantryRepo {
     const id = await purchaseIdFor(householdId, info.key);
     const purchase = await this.engine.mutate<Purchase>(householdId, 'purchases', id, fields);
     return { purchase, existing: false };
+  }
+
+  /**
+   * Importa os itens lidos do texto da SEFAZ para uma compra PENDENTE.
+   * Ids determinísticos: importar o mesmo texto em dois aparelhos não duplica itens.
+   * Os itens são gravados antes da compra virar 'importada', então uma falha no meio
+   * deixa a nota pendente e a importação pode ser repetida com segurança.
+   *
+   * NÃO cria Products, PriceHistory nem estoque: a normalização (descrição → produto)
+   * é a próxima etapa; aqui os itens ficam apenas como PurchaseItem "crus".
+   */
+  async importPurchaseItems(householdId: string, purchaseId: string, parsed: ParsedNfce): Promise<Purchase> {
+    const p = await this.db.purchases.get(purchaseId);
+    if (!p || p.householdId !== householdId || p.deleted) throw new Error('Nota não encontrada nesta Casa');
+    if (p.status === 'importada') throw new Error('Os itens desta nota já foram importados');
+    if (parsed.items.length === 0) throw new Error('Nenhum item para importar');
+    const key = p.accessKey;
+    if (key && key.length === 44) {
+      const series = Number(key.slice(22, 25));
+      const number = Number(key.slice(25, 34));
+      if ((parsed.number !== undefined && parsed.number !== number) || (parsed.series !== undefined && parsed.series !== series)) {
+        throw new Error('Este texto é de outra nota');
+      }
+    }
+    for (let i = 0; i < parsed.items.length; i++) {
+      const it = parsed.items[i]!;
+      const fields: Record<string, unknown> = {
+        purchaseId,
+        rawDescription: it.description,
+        quantity: it.quantity,
+        unit: it.unit,
+        unitPriceCents: it.unitPriceCents,
+        totalCents: it.totalCents,
+        position: i,
+        deleted: false,
+      };
+      if (it.code) fields.code = it.code;
+      if (it.rawUnit) fields.rawUnit = it.rawUnit;
+      await this.engine.mutate<PurchaseItem>(householdId, 'purchaseItems', await purchaseItemIdFor(householdId, purchaseId, i), fields);
+    }
+    const t = parsed.totals;
+    const itemsSum = parsed.items.reduce((s, it) => s + it.totalCents, 0);
+    const fields: Record<string, unknown> = {
+      status: 'importada',
+      totalCents: t.payableCents ?? t.totalCents ?? itemsSum,
+      itemsCount: parsed.items.length,
+      discountCents: t.discountCents,
+      otherCents: t.otherCents,
+    };
+    if (parsed.emittedAt) fields.purchasedAt = parsed.emittedAt;
+    if (parsed.payment) fields.paymentMethod = parsed.payment.method;
+    return this.engine.mutate<Purchase>(householdId, 'purchases', purchaseId, fields);
+  }
+
+  async listPurchaseItems(householdId: string, purchaseId: string): Promise<PurchaseItem[]> {
+    const all = await this.db.purchaseItems.where('purchaseId').equals(purchaseId).toArray();
+    return all
+      .filter((i) => i.householdId === householdId && !i.deleted)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.id < b.id ? -1 : 1));
   }
 
   async listPurchases(householdId: string): Promise<Purchase[]> {
