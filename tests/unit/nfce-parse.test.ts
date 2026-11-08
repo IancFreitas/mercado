@@ -141,6 +141,8 @@ Valor total R$: 1.299,90`);
     expect(() => parseSefazText('')).toThrow(SefazTextError);
     // itens só depois da chave não valem
     expect(() => parseSefazText('Chave de acesso\n' + FIXTURE)).toThrow(/Não encontrei itens/);
+    // consumidor (e chave) antes dos itens: falha segura, sem vazar dados
+    expect(() => parseSefazText(CONSUMER + FIXTURE)).toThrow(/Não encontrei itens/);
   });
   it('recusa texto acima de 200 KB', () => {
     expect(() => parseSefazText('x'.repeat(200 * 1024 + 1))).toThrow(/200 KB/);
@@ -289,5 +291,43 @@ describe('importPurchaseItems (repo)', async () => {
     parsed.items[0]!.totalCents = 9e15;
     await expect(a.importPurchaseItems(household.id, purchase.id, parsed)).rejects.toThrow(/fora do limite/);
     expect((await a.listPurchases(household.id))[0]!.status).toBe('pendente');
+  });
+});
+
+describe('parseSefazText — página inteira (Selecionar Tudo)', () => {
+  const PAGE = `Consulta Pública - NFC-e
+Secretaria da Fazenda
+MERCADO EXEMPLO LTDA
+CNPJ: 11.222.333/0001-81
+RUA FICTICIA 1, CENTRO, SAO PAULO
+Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica
+ARROZ 5KG (Código: 1 )
+Qtde.:2   UN: UN   Vl. Unit.:   20,00 \tVl. Total
+40,00
+FEIJAO 1KG (Código: 2 )
+Qtde.:1   UN: UN   Vl. Unit.:   8,50 \tVl. Total
+8,50
+Qtd. total de itens: 2
+Valor total R$: 48,50
+Valor a pagar R$: 48,50
+Forma de pagamento: Valor pago R$:
+Dinheiro 48,50
+Número: 12345 Série: 6 Emissão: 19/09/2026 18:15:34 - Via Consumidor
+Chave de acesso:
+3526 0911 2223 3300 0181 6500 6000 0123 4591 2345 6780
+Consumidor
+CPF: 000.000.000-00 Nome: FULANO DE TAL
+Endereço: RUA FICTICIA 1
+Voltar  Imprimir
+`;
+  it('lê só itens e totais, captura o CNPJ e ignora dados do consumidor', () => {
+    const r = parseSefazText(PAGE);
+    expect(r.items).toHaveLength(2);
+    expect(r.consistent).toBe(true);
+    expect(r.issuerCnpj).toBe('11222333000181');
+    const json = JSON.stringify(r);
+    expect(json).not.toContain('FULANO');
+    expect(json).not.toContain('000.000.000-00');
+    expect(json).not.toContain('RUA FICTICIA');
   });
 });

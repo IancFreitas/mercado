@@ -246,7 +246,8 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
   return (
     <div className="row-edit import-box" data-testid="import-panel">
       <p className="muted import-help">
-        Abra a nota na SEFAZ, selecione do primeiro produto até antes de "Chave de acesso", copie e cole aqui.
+        Abra a nota na SEFAZ, toque e segure em qualquer texto › Selecionar Tudo › Copiar. Volte aqui e cole.
+        O app lê só os produtos e totais e ignora tudo a partir de "Chave de acesso" (seus dados pessoais não são lidos nem salvos).
       </p>
       <textarea
         className="input import-text"

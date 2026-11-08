@@ -99,9 +99,10 @@ Diga "E aí Siri, adicionar leite". O app abre e pede confirmação antes de gra
 Depois de registrada, a nota fica com "itens pendentes". Para importar os produtos e preços:
 
 6. Toque em **Abrir na SEFAZ** (ou **SEFAZ** na lista) e aguarde a nota completa aparecer.
-7. Selecione o texto **do primeiro produto até antes de "Chave de acesso"** e copie. Não copie a
-   parte da chave em diante: ali aparecem CPF, nome e endereço do consumidor (o app também
-   ignora tudo que vier depois de "Chave de acesso", mas é melhor nem copiar).
+7. Na página da nota, toque e segure em qualquer texto › **Selecionar Tudo** › **Copiar**. Não
+   é preciso escolher trecho nenhum: o app lê só os produtos e totais e ignora tudo a partir de
+   "Chave de acesso" (CPF, nome e endereço do consumidor não são lidos nem salvos). Obs.: por bloqueio da
+   SEFAZ a servidores, a importação automática não é possível; o caminho é o Selecionar Tudo.
 8. Volte ao app, em **Notas registradas** toque em **Importar itens**, toque em **Colar** (ou cole
    no campo "Texto da nota") e em **Ler texto**.
 9. Confira a prévia: itens, quantidades, valor a pagar e forma de pagamento. Se aparecer um
