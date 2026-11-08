@@ -26,7 +26,7 @@ Legenda: ✅ concluído · 🟡 em andamento · ⬜ não iniciado · 🔒 depend
 
 ## Fase 2 — Compras e despensa 🟡
 1. ✅ Decodificador local do QR/chave NFC-e (v1/v2/v3, online/offline, 44 dígitos, DV mod 11, UF, CNPJ, AAMM, nº) + testes.
-2. ✅ Leitor de QR (câmera via getUserMedia + jsQR; foto; chave digitada) — 🔒 câmera no iPhone real não testada.
+2. ✅ Leitor de QR (câmera via getUserMedia + jsQR; foto; chave digitada) — ✅ câmera validada em iPhone real (2026-11-08).
    ✅ Nota registrada como compra *pendente*, id derivado da chave (sem duplicar entre aparelhos), link seguro (*.gov.br) para a SEFAZ.
 3. Abrir consulta SEFAZ no Safari + colar/compartilhar texto → parser local (classes `txtTit`, `Rqtd`, `RUN`, `RvlUnit`...); fixtures reais fornecidas por você.
 4. Fallback manual de compra; OCR local (Tesseract.js) com campos de baixa confiança.
