@@ -4,6 +4,8 @@ import { useApp } from '../app/AppContext';
 import { formatAccessKey, formatCnpj } from '../nfce/accessKey';
 import { decodeFile, decodeFrom } from '../nfce/decodeImage';
 import { parseNfceQr, type NfceQr } from '../nfce/qrcode';
+import { parseSefazText, type ParsedNfce } from '../nfce/parseSefazText';
+import type { Purchase } from '../domain/types';
 import { Section, formatBRL } from './components';
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -124,35 +126,190 @@ export function ScanScreen() {
           <h2 className="section-title">Notas registradas ({purchases.length})</h2>
           <ul className="card list" data-testid="purchase-list">
             {purchases.map((p) => (
-              <li className="row" key={p.id}>
-                <span className="grow">
-                  <span className="item-name">{p.issuerCnpj ? formatCnpj(p.issuerCnpj) : 'Compra'}</span>
-                  <span className="item-meta" style={{ display: 'block' }}>
-                    {new Date(p.purchasedAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })}
-                    {p.totalCents ? ` · ${formatBRL(p.totalCents)}` : ''} · {p.status === 'pendente' ? 'itens pendentes' : 'importada'}
-                  </span>
-                </span>
-                {p.consultUrl && (
-                  <a className="link" href={p.consultUrl} target="_blank" rel="noopener noreferrer">
-                    SEFAZ
-                  </a>
-                )}
-                <button
-                  className="link"
-                  onClick={() => confirm('Remover esta nota?') && s.repo.removePurchase(hid, p.id)}
-                  aria-label="Remover nota"
-                >
-                  Remover
-                </button>
-              </li>
+              <PurchaseRow key={p.id} p={p} />
             ))}
           </ul>
         </section>
       )}
 
-      <Section footer="Próximo passo da Fase 2: importar os itens e preços da nota (pela página da SEFAZ ou pela foto do cupom).">
-        <div className="row muted">Importação dos itens — em desenvolvimento</div>
+      <Section footer="Próximo passo da Fase 2: reconhecer os produtos e montar o histórico de preços a partir dos itens importados.">
+        <div className="row muted">Produtos e preços — em desenvolvimento</div>
       </Section>
+    </div>
+  );
+}
+
+function PurchaseRow({ p }: { p: Purchase }) {
+  const { s, session, toast } = useApp();
+  const hid = session.householdId!;
+  const [open, setOpen] = useState(false);
+  const pending = p.status === 'pendente';
+  return (
+    <li className="row" data-testid="purchase-row">
+      <span className="grow">
+        <span className="item-name">{p.issuerCnpj ? formatCnpj(p.issuerCnpj) : 'Compra'}</span>
+        <span className="item-meta" style={{ display: 'block' }}>
+          {new Date(p.purchasedAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })}
+          {p.totalCents ? ` · ${formatBRL(p.totalCents)}` : ''} · {pending ? 'itens pendentes' : 'importada'}
+          {p.paymentMethod ? ` · ${p.paymentMethod}` : ''}
+        </span>
+      </span>
+      {pending ? (
+        <button className="link" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          Importar itens
+        </button>
+      ) : (
+        <button className="link" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          {open ? 'Ocultar itens' : 'Ver itens'}
+        </button>
+      )}
+      {p.consultUrl && (
+        <a className="link" href={p.consultUrl} target="_blank" rel="noopener noreferrer">
+          SEFAZ
+        </a>
+      )}
+      <button
+        className="link"
+        onClick={() => confirm('Remover esta nota?') && s.repo.removePurchase(hid, p.id)}
+        aria-label="Remover nota"
+      >
+        Remover
+      </button>
+      {open && pending && <ImportPanel purchase={p} onDone={() => { setOpen(false); toast('Itens importados'); }} onCancel={() => setOpen(false)} />}
+      {open && !pending && <PurchaseItems purchase={p} />}
+    </li>
+  );
+}
+
+function PurchaseItems({ purchase }: { purchase: Purchase }) {
+  const { s, session } = useApp();
+  const hid = session.householdId!;
+  const items = useLiveQuery(() => s.repo.listPurchaseItems(hid, purchase.id), [hid, purchase.id], []);
+  return (
+    <div className="row-edit import-box" data-testid="purchase-items">
+      {items.length === 0 && <span className="muted">Nenhum item encontrado (pode estar sincronizando).</span>}
+      {items.map((i) => (
+        <div className="import-line" key={i.id}>
+          <span className="grow">{i.rawDescription}</span>
+          <span className="muted">
+            {i.quantity} {i.unit} × {formatBRL(i.unitPriceCents)}
+          </span>
+          <strong>{formatBRL(i.totalCents)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDone: () => void; onCancel: () => void }) {
+  const { s, session } = useApp();
+  const hid = session.householdId!;
+  const [text, setText] = useState('');
+  const [parsed, setParsed] = useState<ParsedNfce | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+
+  async function paste() {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) { setText(t); setParsed(null); setErr(null); }
+    } catch {
+      /* sem permissão/suporte: o usuário cola manualmente no campo */
+    }
+  }
+
+  function read() {
+    try {
+      setParsed(parseSefazText(text));
+      setUnverified(false);
+      setErr(null);
+    } catch (e) {
+      setParsed(null);
+      setErr((e as Error).message);
+    }
+  }
+
+  async function confirmImport() {
+    if (!parsed) return;
+    setBusy(true);
+    try {
+      await s.repo.importPurchaseItems(hid, purchase.id, parsed);
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="row-edit import-box" data-testid="import-panel">
+      <p className="muted import-help">
+        Abra a nota na SEFAZ, toque e segure em qualquer texto › Selecionar Tudo › Copiar. Volte aqui e cole.
+        O app lê só os produtos e totais e ignora tudo a partir de "Chave de acesso" (seus dados pessoais não são lidos nem salvos).
+      </p>
+      <textarea
+        className="input import-text"
+        aria-label="Texto da nota"
+        rows={6}
+        value={text}
+        onChange={(e) => { setText(e.target.value); setParsed(null); }}
+        placeholder="Cole aqui o texto copiado da página da SEFAZ"
+      />
+      <div className="import-actions">
+        <button className="btn btn-plain" type="button" onClick={paste}>Colar</button>
+        <button className="btn btn-primary" type="button" onClick={read} disabled={!text.trim()}>Ler texto</button>
+        <button className="btn btn-plain" type="button" onClick={onCancel}>Cancelar</button>
+      </div>
+      {err && <div className="banner banner-warn import-wide" role="alert">{err}</div>}
+      {parsed && (
+        <div className="import-wide" data-testid="import-preview">
+          {parsed.warnings.length > 0 && (
+            <div className="banner banner-warn" role="alert">
+              <strong>Confira antes de importar:</strong>
+              <ul>{parsed.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+            </div>
+          )}
+          {parsed.number === undefined && (
+            <label className="banner banner-warn import-check">
+              <input type="checkbox" checked={unverified} onChange={(e) => setUnverified(e.target.checked)} />{' '}
+              O texto não tem número/série; não consigo confirmar que é desta nota. Confirmo que é.
+            </label>
+          )}
+          <p><strong>{parsed.items.length} itens</strong></p>
+          {parsed.items.map((i, n) => (
+            <div className="import-line" key={n}>
+              <span className="grow">{i.description}</span>
+              <span className="muted">{i.quantity} {i.unit} × {formatBRL(i.unitPriceCents)}</span>
+              <strong>{formatBRL(i.totalCents)}</strong>
+            </div>
+          ))}
+          <div className="import-line">
+            <span className="grow">Valor total</span>
+            <span>{parsed.totals.totalCents !== undefined ? formatBRL(parsed.totals.totalCents) : '—'}</span>
+          </div>
+          {parsed.totals.discountCents > 0 && (
+            <div className="import-line"><span className="grow">Descontos</span><span>− {formatBRL(parsed.totals.discountCents)}</span></div>
+          )}
+          {parsed.totals.otherCents > 0 && (
+            <div className="import-line"><span className="grow">Outras despesas</span><span>{formatBRL(parsed.totals.otherCents)}</span></div>
+          )}
+          <div className="import-line">
+            <span className="grow"><strong>Valor a pagar</strong></span>
+            <strong>{formatBRL(parsed.totals.payableCents ?? parsed.totals.totalCents ?? 0)}</strong>
+          </div>
+          {parsed.payment && (
+            <div className="import-line">
+              <span className="grow">{parsed.payment.method}</span>
+              <span>{formatBRL(parsed.payment.amountCents)}</span>
+            </div>
+          )}
+          <button className="btn btn-primary" type="button" disabled={busy || (parsed.number === undefined && !unverified)} onClick={confirmImport}>
+            {parsed.consistent ? 'Confirmar importação' : 'Confirmar importação mesmo assim'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

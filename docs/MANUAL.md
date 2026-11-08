@@ -96,9 +96,25 @@ Diga "E aí Siri, adicionar leite". O app abre e pede confirmação antes de gra
 4. Se a mesma nota já foi registrada (por você ou pela Fernanda), o app avisa e não duplica.
 5. **Abrir na SEFAZ** mostra a nota completa no site oficial.
 
-Por enquanto a nota fica com "itens pendentes": a importação dos produtos e preços é o próximo passo.
+Depois de registrada, a nota fica com "itens pendentes". Para importar os produtos e preços:
+
+6. Toque em **Abrir na SEFAZ** (ou **SEFAZ** na lista) e aguarde a nota completa aparecer.
+7. Na página da nota, toque e segure em qualquer texto › **Selecionar Tudo** › **Copiar**. Não
+   é preciso escolher trecho nenhum: o app lê só os produtos e totais e ignora tudo a partir de
+   "Chave de acesso" (CPF, nome e endereço do consumidor não são lidos nem salvos). Obs.: por bloqueio da
+   SEFAZ a servidores, a importação automática não é possível; o caminho é o Selecionar Tudo.
+8. Volte ao app, em **Notas registradas** toque em **Importar itens**, toque em **Colar** (ou cole
+   no campo "Texto da nota") e em **Ler texto**.
+9. Confira a prévia: itens, quantidades, valor a pagar e forma de pagamento. Se aparecer um
+   aviso (por exemplo, a soma dos itens não bate com o total), provavelmente faltou algum
+   item na cópia: cancele e copie de novo. Estando certo, toque em **Confirmar importação**.
+10. A nota passa a "importada"; toque em **Ver itens** para listar o que foi comprado.
+    Se Ian e Fernanda importarem o mesmo texto, os itens não duplicam.
+
+Limitações conhecidas: preços unitários com mais de 2 casas (ex.: combustível 4,599) são arredondados para centavos (o total da nota vale); descontos aplicados por item fora do bloco de totais só geram aviso; apenas a primeira forma de pagamento é lida. Se o texto não trouxer número e série, o app pede uma confirmação extra. Se o texto for de outra nota, o app recusa. Por enquanto os itens são apenas guardados; o
+reconhecimento dos produtos e o histórico de preços são o próximo passo.
 
 ## Ainda não disponível
 
-Importação dos itens da nota, despensa, histórico de preços, previsões e modo compras
+Reconhecimento dos produtos da nota, despensa, histórico de preços, previsões e modo compras
 são as próximas fases. O app mostra essas áreas como "em breve".

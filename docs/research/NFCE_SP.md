@@ -263,3 +263,32 @@ Observações:
 Scripts e respostas brutas desta sessão ficaram no scratchpad do agente, que é temporário.
 Para repetir, use os comandos das seções 3.1 a 3.4 com
 `UA_IPHONE='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'`.
+
+## 9. Teste de viabilidade da busca automática (Edge Function): BLOQUEADO
+
+Data: 2026-11-08. Objetivo: uma Edge Function do Supabase (projeto `hgeuvqywqwwwcbqsqxax`)
+buscar a página da nota a partir da URL do QR, sem copiar e colar.
+
+Método: sonda temporária (sem retorno de corpo), protegida por cabeçalho secreto, executada
+em `sa-east-1` (`x-region: sa-east-1`; resposta confirmou `x-sb-edge-region: sa-east-1`),
+User-Agent honesto (`MercadoPWA/1.0 ...`), redirecionamentos manuais só para hosts da SEFAZ-SP,
+timeout de 10 s. URL usada: a do QR decodificado da nota real do usuário
+(`https://www.nfce.fazenda.sp.gov.br/qrcode?p=<chave>|3|1|<hash>`, produção).
+
+Resultado, em 4 tentativas seguidas: o servidor da SEFAZ (`201.55.61.119:443`) derruba a
+conexão antes de qualquer resposta HTTP:
+
+```
+TypeError: error sending request ... (201.55.61.119:443): client error (SendRequest):
+connection error: Connection reset by peer (os error 104)
+```
+
+Não houve status HTTP, página de "Request Rejected" nem CAPTCHA: é bloqueio na camada de
+conexão (IP/ASN do provedor de nuvem), coerente com o bloqueio de §3.1. Contornar exigiria
+trocar de IP/proxy ou imitar um navegador, o que está fora do que o app pode fazer.
+
+Decisão: busca automática por servidor INVIÁVEL. Nada foi implementado em produção; a função
+`nfce-fetch` ficou como stub desativado (HTTP 501, `verify_jwt=true`). O fluxo suportado
+continua sendo a importação por texto colado (Selecionar Tudo › Copiar). Alternativas que
+dependem de decisão do usuário: contato com a SEFAZ-SP (liberação de IP/uso institucional),
+ou um contador/ERP com certificado digital via serviço oficial de consulta.

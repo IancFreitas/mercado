@@ -46,7 +46,7 @@
 | API Supabase real com publishable key, sem login | 401 em tabelas e RPCs |
 | App compilado → Supabase real (CSP) | conexão 200, sem erros de console |
 | Site publicado (Chromium emulando iPhone 13): manifest/ícones 200, criar Casa, item, SW ativo, reabrir offline com dados, login configurado, 0 erros de console | **OK** |
-| **iPhone real** | **NÃO executado** |
+| **iPhone real (2026-11-08, relatado pelo Ian)** | Login por código, compartilhamento Ian ↔ Fernanda e leitura do QR da NFC-e pela câmera **funcionaram**. Roteiro completo (offline, simultâneo, isolamento) ainda não relatado |
 
 ## Problemas encontrados
 Ver `KNOWN_ISSUES.md` (principais: KI-01 sem iPhone, KI-04 template de e-mail, KI-28 clickjacking).

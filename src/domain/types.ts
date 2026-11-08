@@ -138,6 +138,10 @@ export interface Purchase extends BaseRecord {
   docModel?: '65' | '55';
   /** URL (já validada como *.gov.br) para consultar a nota na SEFAZ. */
   consultUrl?: string;
+  /** Preenchidos na importação dos itens (texto da SEFAZ). */
+  itemsCount?: number;
+  discountCents?: number;
+  otherCents?: number;
   createdBy?: string;
 }
 
@@ -149,6 +153,12 @@ export interface PurchaseItem extends BaseRecord {
   unit: Unit;
   unitPriceCents: number;
   totalCents: number;
+  /** Posição do item na nota (0..n-1), para ordenar. */
+  position?: number;
+  /** Código do produto no emitente. */
+  code?: string;
+  /** Unidade original quando não reconhecida. */
+  rawUnit?: string;
 }
 
 export interface InventoryItem extends BaseRecord {
