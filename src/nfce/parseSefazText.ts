@@ -71,11 +71,21 @@ function parseDecimal(raw: string): number {
 const toCents = (n: number) => Math.round(n * 100 + 1e-9);
 const NUM = '[\\d.,]+';
 
+/** Tetos de sanidade (texto colado é entrada não confiável; também respeitam o limite de 8 KiB por operação). */
+const MAX_QTY = 1_000_000;
+const MAX_ITEM_CENTS = 100_000_000; // R$ 1 milhão por item/unitário
+const MAX_TOTAL_CENTS = 1_000_000_000; // R$ 10 milhões nos totais da nota
+const MAX_CODE = 40;
+const MAX_RAW_UNIT = 10;
+const MAX_METHOD = 60;
+
 function money(text: string, re: RegExp): number | undefined {
   const m = re.exec(text);
   if (!m) return undefined;
   const n = parseDecimal(m[1]!);
-  return Number.isNaN(n) ? undefined : toCents(n);
+  if (Number.isNaN(n)) return undefined;
+  const c = toCents(n);
+  return Number.isSafeInteger(c) && c >= 0 && c <= MAX_TOTAL_CENTS ? c : undefined;
 }
 
 export function parseSefazText(input: string): ParsedNfce {
@@ -85,7 +95,7 @@ export function parseSefazText(input: string): ParsedNfce {
   }
   let text = input.replace(/\r\n?/g, '\n').replace(/ /g, ' ');
   // Corta na chave de acesso: nada depois dela é lido.
-  const cut = /chave\s+de\s+acesso/i.exec(text);
+  const cut = /chave\s*de\s*acesso/i.exec(text);
   if (cut) text = text.slice(0, cut.index);
 
   const warnings: string[] = [];
@@ -99,6 +109,7 @@ export function parseSefazText(input: string): ParsedNfce {
   const items: ParsedNfceItem[] = [];
   /** Soma dos totais calculados com preço unitário exato (para a checagem qtd × unitário). */
   const exactTotals: number[] = [];
+  let rejected = 0;
   let prevEnd = 0;
   let itemsEnd = 0;
   let m: RegExpExecArray | null;
@@ -111,7 +122,7 @@ export function parseSefazText(input: string): ParsedNfce {
     let code: string | undefined;
     const cm = /\(\s*C[óo]digo\s*:\s*([^)]*?)\s*\)/i.exec(desc);
     if (cm) {
-      code = cm[1]!.trim() || undefined;
+      code = cm[1]!.trim().slice(0, MAX_CODE) || undefined;
       desc = desc.replace(cm[0], '');
     }
     desc = desc.replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -125,9 +136,18 @@ export function parseSefazText(input: string): ParsedNfce {
       warnings.push(`Item "${desc}": quantidade ou preço ilegível — ignorado`);
       continue;
     }
-    const rawU = m[2]!.replace(/[.,;:]+$/g, '').toUpperCase();
+    const rawU = m[2]!.replace(/[.,;:]+$/g, '').toUpperCase().slice(0, MAX_RAW_UNIT);
     const unit = UNIT_MAP[rawU];
     const exact = qty * unitPrice * 100;
+    const tc = m[4] !== undefined ? parseDecimal(m[4]) : NaN;
+    if (
+      qty > MAX_QTY || unitPrice * 100 > MAX_ITEM_CENTS || !(exact <= MAX_ITEM_CENTS * 10) ||
+      (!Number.isNaN(tc) && tc * 100 > MAX_ITEM_CENTS)
+    ) {
+      warnings.push(`Item "${desc}": quantidade ou valor fora do limite aceito — ignorado`);
+      rejected++;
+      continue;
+    }
     let totalCents: number;
     if (m[4] !== undefined && !Number.isNaN(parseDecimal(m[4]))) totalCents = toCents(parseDecimal(m[4]));
     else {
@@ -174,7 +194,7 @@ export function parseSefazText(input: string): ParsedNfce {
   if (pm) {
     const n = parseDecimal(pm[2]!);
     const method = pm[1]!.replace(/\s+/g, ' ').trim();
-    if (method && !Number.isNaN(n)) payment = { method, amountCents: toCents(n) };
+    if (method && !Number.isNaN(n) && toCents(n) <= MAX_TOTAL_CENTS) payment = { method: method.slice(0, MAX_METHOD), amountCents: toCents(n) };
   }
 
   const result: ParsedNfce = {
@@ -208,6 +228,7 @@ export function parseSefazText(input: string): ParsedNfce {
     warnings.push(msg);
     result.consistent = false;
   };
+  if (rejected > 0) bad(`${rejected} item(ns) ignorado(s) por valor ou quantidade fora do limite`);
   const fmt = (c: number) => (c / 100).toFixed(2).replace('.', ',');
   items.forEach((it, i) => {
     // Tolerância de 1 centavo (o unitário exibido já traz as casas decimais usadas no cálculo).

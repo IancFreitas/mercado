@@ -208,6 +208,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
   const [parsed, setParsed] = useState<ParsedNfce | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [unverified, setUnverified] = useState(false);
 
   async function paste() {
     try {
@@ -221,6 +222,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
   function read() {
     try {
       setParsed(parseSefazText(text));
+      setUnverified(false);
       setErr(null);
     } catch (e) {
       setParsed(null);
@@ -269,7 +271,10 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
             </div>
           )}
           {parsed.number === undefined && (
-            <div className="banner">O texto não tem número/série da nota; não consigo confirmar que é desta nota.</div>
+            <label className="banner banner-warn import-check">
+              <input type="checkbox" checked={unverified} onChange={(e) => setUnverified(e.target.checked)} />{' '}
+              O texto não tem número/série; não consigo confirmar que é desta nota. Confirmo que é.
+            </label>
           )}
           <p><strong>{parsed.items.length} itens</strong></p>
           {parsed.items.map((i, n) => (
@@ -299,7 +304,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
               <span>{formatBRL(parsed.payment.amountCents)}</span>
             </div>
           )}
-          <button className="btn btn-primary" type="button" disabled={busy} onClick={confirmImport}>
+          <button className="btn btn-primary" type="button" disabled={busy || (parsed.number === undefined && !unverified)} onClick={confirmImport}>
             {parsed.consistent ? 'Confirmar importação' : 'Confirmar importação mesmo assim'}
           </button>
         </div>

@@ -164,6 +164,29 @@ Valor total R$: 1.299,90`);
   });
 });
 
+describe('parseSefazText — limites', () => {
+  const base = (extra: string, qty = '1', unit = 'UN', price = '1,00', tot = '1,00') => `PROD ${extra}
+Qtde.:${qty}   UN: ${unit}   Vl. Unit.:   ${price} \tVl. Total
+${tot}
+Valor total R$: ${tot}`;
+  it('trunca código, unidade desconhecida e forma de pagamento', () => {
+    const r = parseSefazText(base('(Código: ' + '9'.repeat(5000) + ' )', '1', 'X'.repeat(500)) + '\nForma de pagamento: Valor pago R$:\n' + 'Cartão '.repeat(3000) + ' 1,00');
+    expect(r.items[0]!.code!.length).toBeLessThanOrEqual(40);
+    expect(r.items[0]!.rawUnit!.length).toBeLessThanOrEqual(10);
+    expect(r.payment!.method.length).toBeLessThanOrEqual(60);
+  });
+  it('valores gigantes são ignorados com aviso (nunca importados)', () => {
+    expect(() => parseSefazText(base('', '99999999999', 'UN', '99999999999', '99999999999'))).toThrow(/Não encontrei itens/);
+    const r = parseSefazText(base('') + '\n' + base('', '99999999999', 'UN', '99999999999', '99999999999'));
+    expect(r.items).toHaveLength(1);
+    expect(r.consistent).toBe(false);
+    expect(r.warnings.join(' ')).toMatch(/fora do limite/);
+  });
+  it('"ChavedeAcesso" (sem espaços) também corta', () => {
+    expect(JSON.stringify(parseSefazText(FIXTURE + 'ChavedeAcesso Nome: FULANO'))).not.toContain('FULANO');
+  });
+});
+
 describe('importPurchaseItems (repo)', async () => {
   const { PantryDB } = await import('../../src/db/db');
   const { PantryRepo } = await import('../../src/db/repo');
@@ -237,5 +260,34 @@ describe('importPurchaseItems (repo)', async () => {
       expect(await d.listPurchaseItems(hid, purchase.id)).toHaveLength(8);
       expect((await d.listPurchases(hid))[0]).toMatchObject({ status: 'importada', totalCents: 59745 });
     }
+  });
+
+  it('reimportar com texto menor após falha parcial apaga itens órfãos', async () => {
+    const a = await dev(new MemorySyncServer(), 'ian');
+    const { household } = await a.createHousehold('Casa');
+    const hid = household.id;
+    const { purchase } = await a.savePurchaseFromQr(hid, parseNfceQr(KEY));
+    const { purchaseItemIdFor } = await import('../../src/db/repo');
+    // simula tentativa anterior que gravou 10 itens e caiu antes de marcar a nota
+    for (let i = 0; i < 10; i++) {
+      await a.engine.mutate(hid, 'purchaseItems', await purchaseItemIdFor(hid, purchase.id, i), {
+        purchaseId: purchase.id, rawDescription: `VELHO ${i}`, quantity: 1, unit: 'un', unitPriceCents: 1, totalCents: 1, position: i, deleted: false,
+      });
+    }
+    await a.importPurchaseItems(hid, purchase.id, parseSefazText(FIXTURE));
+    const items = await a.listPurchaseItems(hid, purchase.id);
+    expect(items).toHaveLength(8);
+    expect(items.some((i) => i.rawDescription.startsWith('VELHO 8'))).toBe(false);
+    expect(items[0]!.rawDescription).toBe('MASSA ACRILICA 55KG SUVINIL');
+  });
+
+  it('dados fora do limite viram erro amigável e a nota segue pendente', async () => {
+    const a = await dev(new MemorySyncServer(), 'ian');
+    const { household } = await a.createHousehold('Casa');
+    const { purchase } = await a.savePurchaseFromQr(household.id, parseNfceQr(KEY));
+    const parsed = parseSefazText(FIXTURE);
+    parsed.items[0]!.totalCents = 9e15;
+    await expect(a.importPurchaseItems(household.id, purchase.id, parsed)).rejects.toThrow(/fora do limite/);
+    expect((await a.listPurchases(household.id))[0]!.status).toBe('pendente');
   });
 });

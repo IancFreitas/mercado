@@ -110,7 +110,7 @@ Depois de registrada, a nota fica com "itens pendentes". Para importar os produt
 10. A nota passa a "importada"; toque em **Ver itens** para listar o que foi comprado.
     Se Ian e Fernanda importarem o mesmo texto, os itens não duplicam.
 
-Se o texto for de outra nota, o app recusa. Por enquanto os itens são apenas guardados; o
+Limitações conhecidas: preços unitários com mais de 2 casas (ex.: combustível 4,599) são arredondados para centavos (o total da nota vale); descontos aplicados por item fora do bloco de totais só geram aviso; apenas a primeira forma de pagamento é lida. Se o texto não trouxer número e série, o app pede uma confirmação extra. Se o texto for de outra nota, o app recusa. Por enquanto os itens são apenas guardados; o
 reconhecimento dos produtos e o histórico de preços são o próximo passo.
 
 ## Ainda não disponível

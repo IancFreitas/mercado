@@ -218,34 +218,47 @@ export class PantryRepo {
         throw new Error('Este texto é de outra nota');
       }
     }
-    for (let i = 0; i < parsed.items.length; i++) {
-      const it = parsed.items[i]!;
-      const fields: Record<string, unknown> = {
-        purchaseId,
-        rawDescription: it.description,
-        quantity: it.quantity,
-        unit: it.unit,
-        unitPriceCents: it.unitPriceCents,
-        totalCents: it.totalCents,
-        position: i,
-        deleted: false,
-      };
-      if (it.code) fields.code = it.code;
-      if (it.rawUnit) fields.rawUnit = it.rawUnit;
-      await this.engine.mutate<PurchaseItem>(householdId, 'purchaseItems', await purchaseItemIdFor(householdId, purchaseId, i), fields);
+    const n = parsed.items.length;
+    for (const it of parsed.items) {
+      const ok = [it.quantity, it.unitPriceCents, it.totalCents].every((v) => Number.isSafeInteger(Math.round(v)) && v >= 0 && v <= 1e9);
+      if (!ok) throw new Error('A nota tem valores fora do limite aceito');
     }
-    const t = parsed.totals;
-    const itemsSum = parsed.items.reduce((s, it) => s + it.totalCents, 0);
-    const fields: Record<string, unknown> = {
-      status: 'importada',
-      totalCents: t.payableCents ?? t.totalCents ?? itemsSum,
-      itemsCount: parsed.items.length,
-      discountCents: t.discountCents,
-      otherCents: t.otherCents,
-    };
-    if (parsed.emittedAt) fields.purchasedAt = parsed.emittedAt;
-    if (parsed.payment) fields.paymentMethod = parsed.payment.method;
-    return this.engine.mutate<Purchase>(householdId, 'purchases', purchaseId, fields);
+    try {
+      for (let i = 0; i < n; i++) {
+        const it = parsed.items[i]!;
+        const fields: Record<string, unknown> = {
+          purchaseId,
+          rawDescription: it.description.slice(0, 200),
+          quantity: it.quantity,
+          unit: it.unit,
+          unitPriceCents: it.unitPriceCents,
+          totalCents: it.totalCents,
+          position: i,
+          deleted: false,
+        };
+        if (it.code) fields.code = it.code.slice(0, 40);
+        if (it.rawUnit) fields.rawUnit = it.rawUnit.slice(0, 10);
+        await this.engine.mutate<PurchaseItem>(householdId, 'purchaseItems', await purchaseItemIdFor(householdId, purchaseId, i), fields);
+      }
+      // Retentativa com texto menor: apaga itens órfãos (posição >= nova quantidade) de uma tentativa anterior.
+      for (const old of await this.listPurchaseItems(householdId, purchaseId)) {
+        if ((old.position ?? 0) >= n) await this.engine.mutate(householdId, 'purchaseItems', old.id, { deleted: true });
+      }
+      const t = parsed.totals;
+      const itemsSum = parsed.items.reduce((s, it) => s + it.totalCents, 0);
+      const fields: Record<string, unknown> = {
+        status: 'importada',
+        totalCents: t.payableCents ?? t.totalCents ?? itemsSum,
+        itemsCount: n,
+        discountCents: t.discountCents,
+        otherCents: t.otherCents,
+      };
+      if (parsed.emittedAt) fields.purchasedAt = parsed.emittedAt;
+      if (parsed.payment) fields.paymentMethod = parsed.payment.method.slice(0, 60);
+      return await this.engine.mutate<Purchase>(householdId, 'purchases', purchaseId, fields);
+    } catch {
+      throw new Error('Não foi possível gravar os itens (dados grandes demais ou inválidos). A nota continua pendente; confira o texto e tente de novo.');
+    }
   }
 
   async listPurchaseItems(householdId: string, purchaseId: string): Promise<PurchaseItem[]> {
