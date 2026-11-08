@@ -57,3 +57,75 @@ test('foto sem QR Code orienta o usuário', async ({ page }) => {
   await page.getByTestId('qr-photo').setInputFiles(png);
   await expect(page.getByRole('alert')).toContainText('Não encontrei um QR Code');
 });
+
+// Texto no formato da página da SEFAZ (nota anonimizada) + bloco do consumidor que deve ser ignorado.
+const SEFAZ_TEXT = `MASSA ACRILICA 55KG SUVINIL (Código: 89580456 )
+Qtde.:1   UN: UN   Vl. Unit.:   71,9 \tVl. Total
+71,90
+PLASTICO BOLHA 130X50M (Código: 89535544 )
+Qtde.:1   UN: UN   Vl. Unit.:   74,9 \tVl. Total
+74,90
+TINTA STD ACR FSC RD E COBRE BR 20L SV (Código: 89467231 )
+Qtde.:1   UN: UN   Vl. Unit.:   379,9 \tVl. Total
+379,90
+TRINCHA SIMPLES PPAREDE 2 COMPEL (Código: 89780250 )
+Qtde.:1   UN: UN   Vl. Unit.:   5,39 \tVl. Total
+5,39
+SACOLA PLASTICA CINZA 60X70 (Código: 89723466 )
+Qtde.:1   UN: UN   Vl. Unit.:   0,25 \tVl. Total
+0,25
+FOLHA LIXA MASSA G120 A230 ALCAR (Código: 89719511 )
+Qtde.:11   UN: UN   Vl. Unit.:   0,7 \tVl. Total
+7,70
+ROLO LA SINT ANTIR S SUP 1374 23CM TIGR (Código: 89169402 )
+Qtde.:1   UN: UN   Vl. Unit.:   19,9 \tVl. Total
+19,90
+FITA CREPE BRANCA 48MMx50M TEKBOND (Código: 89641405 )
+Qtde.:2   UN: UN   Vl. Unit.:   12,9 \tVl. Total
+25,80
+Qtd. total de itens: 8
+Valor total R$: 585,74
+Outras despesas R$: 11,71
+Valor a pagar R$: 597,45
+Forma de pagamento: Valor pago R$:
+Cartão de Crédito 597,45
+Troco NaN
+Informação dos Tributos Totais Incidentes (Lei Federal 12.741/2012) R$
+192,15
+Informações gerais da Nota
+EMISSÃO NORMAL
+
+Número: 12345 Série: 6 Emissão: 19/09/2026 18:15:34 - Via Consumidor
+
+Protocolo de Autorização: 00000000000000000 19/09/2026 18:15:35
+
+Ambiente de Produção - Versão XML: 4.00 - Versão XSLT: 2.05
+` + '\nChave de acesso\n' + KEY + '\nCPF: 000.000.000-00\nNome: FULANO DE TAL\n';
+
+test('importa os itens da nota a partir do texto copiado da SEFAZ', async ({ page }) => {
+  await openNotas(page);
+  await page.getByLabel('Chave de acesso').fill(KEY);
+  await page.getByRole('button', { name: 'Usar chave' }).click();
+  await page.getByRole('button', { name: 'Registrar nota' }).click();
+  await expect(page.getByTestId('purchase-list')).toContainText('itens pendentes');
+
+  await page.getByRole('button', { name: 'Importar itens' }).click();
+  await expect(page.getByTestId('import-panel')).toBeVisible();
+  await page.getByLabel('Texto da nota').fill(SEFAZ_TEXT);
+  await page.getByRole('button', { name: 'Ler texto' }).click();
+  const preview = page.getByTestId('import-preview');
+  await expect(preview).toContainText('8 itens');
+  await expect(preview).toContainText('597,45');
+  await expect(preview).toContainText('FOLHA LIXA MASSA G120 A230 ALCAR');
+  await expect(preview).not.toContainText('FULANO');
+  await page.getByRole('button', { name: 'Confirmar importação' }).click();
+
+  const list = page.getByTestId('purchase-list');
+  await expect(list).toContainText('importada');
+  await expect(list).toContainText('597,45');
+  await page.getByRole('button', { name: 'Ver itens' }).click();
+  const items = page.getByTestId('purchase-items');
+  await expect(items).toContainText('MASSA ACRILICA 55KG SUVINIL');
+  await expect(items).toContainText('FITA CREPE BRANCA 48MMx50M TEKBOND');
+  await expect(items).not.toContainText('FULANO');
+});
