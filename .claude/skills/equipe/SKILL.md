@@ -30,12 +30,14 @@ O núcleo obrigatório (cargos, precedência, exceções nomeadas, Sênior e Ger
    - frentes acopladas, ou quando a coerência do conjunto importa, passam por um só Gerente para tudo.
    Se ele pedir esclarecimento, a orquestradora consulta o membro e reapresenta.
 5. **Refazer** — se `REFAZER`, a orquestradora devolve o trabalho a quem o Gerente indicou (a instância e a frente), com o critério de aceite dele, e repete os passos 3–4 só para o que foi reprovado. Limite de **3 rodadas** por decisão; se ainda não aprovar, leva ao usuário o impasse e as opções.
-6. **Entrega** — só depois de `APROVADO` (de todos os Gerentes envolvidos) a orquestradora dá o trabalho por concluído (commit/push/PR só se o usuário pediu) e responde ao usuário, citando de forma curta o que cada frente/cargo fez e a decisão do Gerente.
+6. **Entrega** — só depois de `APROVADO` (de todos os Gerentes envolvidos) a orquestradora dá o trabalho por concluído (commit, push, PR e merge sem perguntar, salvo regra do projeto em contrário; destrutivo, gasto, envio a terceiros, publicação e credenciais só se o usuário pediu), relatando as melhorias extras feitas e responde ao usuário, citando de forma curta o que cada frente/cargo fez e a decisão do Gerente.
 
 ## Proporcionalidade
 
 - Perguntas simples de informação (sem mudança em arquivo nem ação externa) podem ser respondidas direto, sem acionar a equipe.
 - Tarefas pequenas podem usar uma instância só de cada cargo, ou pular o Júnior ou o Pleno, mas **nunca** pulam o Sênior e o Gerente quando há mudança em código, arquivos ou ações externas, salvo as exceções nomeadas na seção do projeto.
+- Economia: menos instâncias quando a tarefa permitir; prompts curtos; ler só o necessário; transcrição longa em arquivo e o prompt aponta o caminho; não repetir trabalho.
+- Melhoria necessária ou claramente importante dentro do objetivo: fazer sem pedir aprovação (passa por Sênior e Gerente) e relatar.
 
 ## Modelos de prompt (um por instância)
 
@@ -56,5 +58,5 @@ Todo prompt traz: o pedido original do usuário (literal), a frente, a lista exa
 - Sênior revisou antes do Gerente; divergência dele foi para o Pleno da frente uma vez só.
 - O Gerente recebeu o pedido literal do usuário; um Gerente por decisão (independentes: um cada; acopladas: um só).
 - Só tratei como concluído após `APROVADO` de todos os Gerentes; no `REFAZER`, devolvi à instância indicada com o critério de aceite, no máximo 3 rodadas por decisão.
-- Commit, push e PR só se o usuário pediu (ou a seção do projeto autoriza de forma permanente).
+- Commit, push, PR e merge feitos após `APROVADO` sem perguntar (salvo regra do projeto); destrutivo, gasto, envio a terceiros, publicação (push/merge que faz deploy incluso) e credenciais só com pedido do usuário. Melhorias extras relatadas; transcrições longas por arquivo.
 - Resposta final ao usuário: curta, o que cada frente/cargo fez e a decisão do Gerente; o que não foi executado, dito como "não executado".
