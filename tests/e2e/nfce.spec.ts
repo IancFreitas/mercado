@@ -129,3 +129,24 @@ test('importa os itens da nota a partir do texto copiado da SEFAZ', async ({ pag
   await expect(items).toContainText('FITA CREPE BRANCA 48MMx50M TEKBOND');
   await expect(items).not.toContainText('FULANO');
 });
+
+test('itens importados mostram o preço pago na lista de compras', async ({ page }) => {
+  await openNotas(page);
+  await page.getByLabel('Chave de acesso').fill(KEY);
+  await page.getByRole('button', { name: 'Usar chave' }).click();
+  await page.getByRole('button', { name: 'Registrar nota' }).click();
+  await page.getByRole('button', { name: 'Importar itens' }).click();
+  await page.getByLabel('Texto da nota').fill(SEFAZ_TEXT);
+  await page.getByRole('button', { name: 'Ler texto' }).click();
+  await page.getByRole('button', { name: 'Confirmar importação' }).click();
+  await expect(page.getByTestId('purchase-list')).toContainText('importada');
+
+  await page.goto('/#/lista');
+  await page.getByLabel('Nome do item').fill('Fita crepe');
+  await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
+  const line = page.getByTestId('price-line');
+  await expect(line).toContainText('R$ 12,90');
+  await expect(line).toContainText('Último');
+  await page.getByRole('button', { name: /Fita crepe/ }).first().click();
+  await expect(page.getByTestId('price-block')).toContainText('11.222.333/0001-81');
+});

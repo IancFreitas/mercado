@@ -16,6 +16,7 @@ import type { SyncEngine } from '../sync/engine';
 import type { NfceQr } from '../nfce/qrcode';
 import type { Purchase, PurchaseItem } from '../domain/types';
 import type { ParsedNfce } from '../nfce/parseSefazText';
+import type { PriceEntry } from '../prices/priceMatch';
 
 /**
  * Id determinístico (formato UUID) a partir de Casa + chave de acesso: a mesma
@@ -271,6 +272,30 @@ export class PantryRepo {
   async listPurchases(householdId: string): Promise<Purchase[]> {
     const all = await this.db.purchases.where('householdId').equals(householdId).toArray();
     return all.filter((p) => !p.deleted).sort((a, b) => (a.purchasedAt < b.purchasedAt ? 1 : -1));
+  }
+
+  /** Linhas de preço (somente leitura): itens de notas 'importada' não excluídas desta Casa. */
+  async priceEntries(householdId: string): Promise<PriceEntry[]> {
+    const purchases = (await this.db.purchases.where('householdId').equals(householdId).toArray()).filter(
+      (p) => !p.deleted && p.status === 'importada',
+    );
+    const byId = new Map(purchases.map((p) => [p.id, p]));
+    const items = await this.db.purchaseItems.where('householdId').equals(householdId).toArray();
+    const out: PriceEntry[] = [];
+    for (const it of items) {
+      const p = byId.get(it.purchaseId);
+      if (it.deleted || !p) continue;
+      out.push({
+        rawDescription: it.rawDescription,
+        unit: it.unit,
+        unitPriceCents: it.unitPriceCents,
+        quantity: it.quantity,
+        purchasedAt: p.purchasedAt,
+        storeCnpj: p.issuerCnpj,
+        purchaseId: p.id,
+      });
+    }
+    return out;
   }
 
   async removePurchase(householdId: string, id: string): Promise<void> {

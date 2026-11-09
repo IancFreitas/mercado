@@ -111,8 +111,24 @@ Depois de registrada, a nota fica com "itens pendentes". Para importar os produt
 10. A nota passa a "importada"; toque em **Ver itens** para listar o que foi comprado.
     Se Ian e Fernanda importarem o mesmo texto, os itens não duplicam.
 
-Limitações conhecidas: preços unitários com mais de 2 casas (ex.: combustível 4,599) são arredondados para centavos (o total da nota vale); descontos aplicados por item fora do bloco de totais só geram aviso; apenas a primeira forma de pagamento é lida. Se o texto não trouxer número e série, o app pede uma confirmação extra. Se o texto for de outra nota, o app recusa. Por enquanto os itens são apenas guardados; o
-reconhecimento dos produtos e o histórico de preços são o próximo passo.
+Limitações conhecidas: preços unitários com mais de 2 casas (ex.: combustível 4,599) são arredondados para centavos (o total da nota vale); descontos aplicados por item fora do bloco de totais só geram aviso; apenas a primeira forma de pagamento é lida. Se o texto não trouxer número e série, o app pede uma confirmação extra. Se o texto for de outra nota, o app recusa. Os itens importados alimentam os preços da lista
+(veja "Preços na lista" abaixo); o reconhecimento completo dos produtos é o próximo passo.
+
+## Preços na lista
+
+Cada item da lista de compras que combina com algum produto de uma nota **importada** mostra, abaixo do nome,
+uma linha como "Último R$ 12,90 · 19/09 · médio R$ 12,50" (o médio aparece com 2 ou mais compras).
+Toque no item para ver "Preços pagos": até 5 compras com data, preço unitário, descrição na nota e CNPJ da loja.
+
+Como funciona: o app compara as palavras do nome do item com a descrição da nota, ignorando acentos e
+maiúsculas; abreviações comuns de nota fiscal funcionam ("Sabão líquido" encontra "SAB ... LQD"). Todas as
+palavras do nome (3+ letras) precisam aparecer, e números/medidas devem bater ("Tinta 20l" não encontra tinta de 18L).
+Nomes muito curtos (menos de 3 letras) não encontram nada. Só entram notas já importadas e da sua Casa;
+notas pendentes ou removidas são ignoradas. Nada é enviado ou alterado: é apenas leitura.
+
+Limitações: embalagens diferentes (ex.: 900 ml e 3 L) ainda não são comparadas; preço médio e mínimo
+só consideram compras na mesma unidade da última. Associações podem errar quando o nome é genérico
+(ex.: "Fita" também encontra fita isolante): use um nome mais específico.
 
 ## Ainda não disponível
 
