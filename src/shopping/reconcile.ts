@@ -9,7 +9,7 @@ import { descTokens, matchesListItem } from '../prices/priceMatch';
 export interface ReconListItem {
   id: string;
   name: string;
-  foundPriceCents?: number;
+  foundPriceCents?: number | null;
 }
 export interface ReconNoteItem {
   id: string;
@@ -59,7 +59,7 @@ export function reconcile(checkedItems: ReconListItem[], noteItems: ReconNoteIte
       noteItem: best.n,
       paidCents: best.n.unitPriceCents,
       loose: best.lead === 1 || cands.length > 1,
-      ...(found !== undefined ? { foundCents: found, diffCents: best.n.unitPriceCents - found } : {}),
+      ...(found != null ? { foundCents: found, diffCents: best.n.unitPriceCents - found } : {}),
     });
   }
   return {

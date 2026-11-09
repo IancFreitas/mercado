@@ -95,7 +95,7 @@ export function ShoppingScreen() {
       )}
 
       <p className="section-footer">
-        O preço encontrado é opcional. Depois de importar a nota, use <strong>Conferir com a lista</strong> em Notas.
+        O preço encontrado é opcional (deixe o campo vazio ou toque em Limpar preço para apagar). Depois de importar a nota, use <strong>Conferir com a lista</strong> em Notas.
       </p>
     </div>
   );
@@ -104,17 +104,34 @@ export function ShoppingScreen() {
 function ShopRow({ item, stats }: { item: ShoppingListItem; stats?: PriceStats }) {
   const { s, session, toast } = useApp();
   const hid = session.householdId!;
-  const [text, setText] = useState(item.foundPriceCents !== undefined ? centsToInput(item.foundPriceCents) : '');
-  useEffect(() => setText(item.foundPriceCents !== undefined ? centsToInput(item.foundPriceCents) : ''), [item.foundPriceCents]);
+  const saved = item.foundPriceCents ?? null; // null = sem preço encontrado
+  const savedText = saved !== null ? centsToInput(saved) : '';
+  const [text, setText] = useState(savedText);
+  useEffect(() => setText(savedText), [savedText]);
   const cmp = comparePrice(item, stats);
 
+  async function clear() {
+    try {
+      await s.repo.updateItem(hid, item.id, { foundPriceCents: null });
+      setText('');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
   async function save() {
-    const c = parsePriceInput(text);
-    if (c === null || c === item.foundPriceCents) {
-      if (c === null && text.trim() && text.trim() !== (item.foundPriceCents !== undefined ? centsToInput(item.foundPriceCents) : '')) toast('Preço inválido');
-      if (c === null) setText(item.foundPriceCents !== undefined ? centsToInput(item.foundPriceCents) : '');
+    // Campo vazio com preço gravado = apagar o preço encontrado.
+    if (!text.trim()) {
+      if (saved !== null) await clear();
       return;
     }
+    const c = parsePriceInput(text);
+    if (c === null) {
+      if (text.trim() !== savedText) toast('Preço inválido');
+      setText(savedText);
+      return;
+    }
+    if (c === saved) return;
     try {
       await s.repo.updateItem(hid, item.id, { foundPriceCents: c });
     } catch (e) {
@@ -164,7 +181,12 @@ function ShopRow({ item, stats }: { item: ShoppingListItem; stats?: PriceStats }
         ) : (
           <span className="item-meta">Sem histórico de preço</span>
         )}
-        {item.foundPriceCents !== undefined && (
+        {saved !== null && (
+          <button className="link" type="button" onClick={clear} aria-label={`Limpar preço de ${item.name}`}>
+            Limpar preço
+          </button>
+        )}
+        {saved !== null && (
           <span className={`cmp cmp-${cmp.status}`} role="status" data-testid="shop-compare">
             <span aria-hidden>{cmp.icon}</span> {cmp.text}
             {cmp.hint && <span className="item-meta" style={{ display: 'block' }}>{cmp.hint}</span>}

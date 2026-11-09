@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../app/AppContext';
-import { formatCnpj } from '../nfce/accessKey';
+import { storeLabel } from '../stores/stores';
+import { useStoreNames } from '../stores/useStoreNames';
 import type { Purchase } from '../domain/types';
 import {
   TIMEZONE,
@@ -24,6 +25,7 @@ const EMPTY: { ps: Purchase[]; lines: CategoryLine[] } = { ps: [], lines: [] };
 export function SpendingScreen() {
   const { s, session } = useApp();
   const hid = session.householdId!;
+  const names = useStoreNames();
   const current = currentMonthKey();
   const [month, setMonth] = useState(current);
   const data = useLiveQuery(
@@ -77,7 +79,7 @@ export function SpendingScreen() {
         {stores.map((st) => (
           <div className="row" key={st.cnpj ?? 'none'} data-testid="spend-store">
             <span className="grow">
-              {st.cnpj ? formatCnpj(st.cnpj) : 'Loja não identificada'}
+              {storeLabel(st.cnpj, names, 'Loja não identificada')}
               <span className="item-meta" style={{ display: 'block' }}>
                 {st.count} compra{st.count > 1 ? 's' : ''}
               </span>
@@ -105,7 +107,7 @@ export function SpendingScreen() {
         {monthPurchases.map((p) => (
           <div className="row" key={p.id} data-testid="spend-purchase">
             <span className="grow">
-              {p.issuerCnpj ? formatCnpj(p.issuerCnpj) : 'Compra'}
+              {storeLabel(p.issuerCnpj, names)}
               <span className="item-meta" style={{ display: 'block' }}>
                 {new Date(p.purchasedAt).toLocaleDateString('pt-BR', { timeZone: TIMEZONE })}
                 {p.status === 'pendente' ? ' · itens pendentes' : ''}

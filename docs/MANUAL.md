@@ -205,6 +205,14 @@ O app aprende com o seu histórico de compras (tudo calculado no próprio aparel
 - Limites: a previsão é uma estimativa simples; compras de notas removidas depois continuam no histórico do estoque.
   Produtos cadastrados à mão sem nenhuma compra de nota não têm previsão.
 
+## Avisos
+
+O app mostra o que está acabando de duas formas, **sem servidor** e só com o app instalado na Tela de Início (iOS 16.4 ou mais novo):
+
+- **Número no ícone:** quantos itens estão nas sugestões de reposição (as mesmas de **Início** e **Lista**). Atualiza quando você abre o app ou volta a ele.
+- **Aviso ao abrir:** em **Casa › Avisos**, ligue **Avisar quando algo estiver acabando** e toque em Permitir. Ao abrir o app, no máximo uma vez por dia, aparece "N itens estão acabando: A, B, C". A escolha vale só para este aparelho.
+- **Limite:** com o app fechado o iPhone **não** recebe aviso; isso exigiria um servidor, que não está configurado. Se a seção disser que os avisos estão indisponíveis, instale o app (Compartilhar › Adicionar à Tela de Início) e abra por lá. Se bloqueou a permissão, libere em Ajustes do iPhone › Notificações.
+
 ## Ainda não disponível
 
 Histórico de preços completo (gráficos, mínimo/máximo por loja) ainda não existe.

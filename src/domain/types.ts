@@ -88,7 +88,7 @@ export interface ShoppingListItem extends BaseRecord {
   priority: Priority;
   checked: boolean;
   /** Preço encontrado no Modo Compras (centavos), opcional. */
-  foundPriceCents?: number;
+  foundPriceCents?: number | null;
   source: 'manual' | 'sugestao' | 'atalho';
   createdAt: string;
   createdBy: string;

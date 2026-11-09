@@ -29,7 +29,7 @@ export interface ListLike {
   unit: string;
   quantity: number;
   checked: boolean;
-  foundPriceCents?: number;
+  foundPriceCents?: number | null;
 }
 
 const SEM: PriceComparison = { status: 'sem', pct: 0, basis: 'unit', icon: '–', text: 'sem comparação' };
@@ -53,7 +53,7 @@ function build(found: number, avg: number, basis: PriceComparison['basis']): Pri
  */
 export function comparePrice(item: Pick<ListLike, 'name' | 'unit' | 'foundPriceCents'>, stats: PriceStats | null | undefined): PriceComparison {
   const found = item.foundPriceCents;
-  if (found === undefined || !stats) return SEM;
+  if (found == null || !stats) return SEM;
   const pkg = parsePackage(item.name);
   if (pkg && stats.normalizedLast && stats.normalizedAvg !== undefined && stats.normalizedLast.unit === pkg.unit) {
     const total = packageTotal(pkg);
@@ -96,7 +96,7 @@ export interface TotalEstimate {
 
 /** Preço usado na estimativa: encontrado, ou último pago se a unidade for a mesma do item. */
 export function estimatedUnitPrice(item: ListLike, stats: PriceStats | null | undefined): number | null {
-  if (item.foundPriceCents !== undefined) return item.foundPriceCents;
+  if (item.foundPriceCents != null) return item.foundPriceCents;
   if (!stats) return null;
   // Nome com embalagem ("Sabão 3L"): usa o último R$/kg|L normalizado × tamanho do item.
   const pkg = parsePackage(item.name);
