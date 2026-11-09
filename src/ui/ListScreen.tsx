@@ -23,7 +23,13 @@ export function useDefaultList() {
 export function useSuggestions(): Suggestion[] {
   const { s, session } = useApp();
   const hid = session.householdId!;
-  return useLiveQuery(() => loadSuggestions(s.repo, hid), [hid], [] as Suggestion[]);
+  // Relógio de 1 h: adiamento que vence e "acaba em N dias" se atualizam com o app aberto.
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 3_600_000);
+    return () => clearInterval(id);
+  }, []);
+  return useLiveQuery(() => loadSuggestions(s.repo, hid, tick), [hid, tick], [] as Suggestion[]);
 }
 
 export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty: number; key: string } | null }) {

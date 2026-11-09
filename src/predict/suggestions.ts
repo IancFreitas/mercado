@@ -33,6 +33,24 @@ export function onList(p: Product, items: Pick<ShoppingListItem, 'productId' | '
   return items.some((i) => !i.deleted && (i.productId === p.id || i.normName === key));
 }
 
+/** Memo por produto: refaz a previsão só se os movimentos (qtd, último, soma) ou a hora mudarem. */
+const memo = new Map<string, { sig: string; forecast: Forecast }>();
+function cachedForecast(p: Product, ms: InventoryMovement[], now: number): Forecast {
+  let last = '';
+  let sum = 0;
+  for (const m of ms) {
+    if (m.at > last) last = m.at;
+    sum += m.delta;
+  }
+  const sig = `${ms.length}|${last}|${Math.round(sum * 1000)}|${p.unit ?? ''}|${Math.floor(now / 3_600_000)}`;
+  const hit = memo.get(p.id);
+  if (hit && hit.sig === sig) return hit.forecast;
+  const forecast = forecastConsumption(ms, now, { unit: p.unit });
+  if (memo.size > 5000) memo.clear();
+  memo.set(p.id, { sig, forecast });
+  return forecast;
+}
+
 export function computeSuggestions(input: {
   householdId: string;
   products: Product[];
@@ -54,7 +72,7 @@ export function computeSuggestions(input: {
     if (onList(p, input.listItems)) continue;
     const ms = byProduct.get(p.id);
     if (!ms) continue;
-    const forecast = forecastConsumption(ms, now, { unit: p.unit });
+    const forecast = cachedForecast(p, ms, now);
     if (forecast.status !== 'ok') continue;
     if (!((forecast.stockEstimate ?? 1) <= 0 || (forecast.daysLeft ?? Infinity) <= SOON_DAYS)) continue;
     out.push({ product: p, forecast, quantity: forecast.typicalQty && forecast.typicalQty > 0 ? forecast.typicalQty : 1, unit: p.unit ?? ms[0]!.unit });

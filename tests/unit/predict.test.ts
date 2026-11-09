@@ -23,6 +23,40 @@ const buy = (n: number, qty: number): MovementLike => ({ kind: 'compra', delta: 
 const NOW = (n: number) => D0 + n * 86_400_000;
 
 describe('forecastConsumption', () => {
+  it('"Usei" parcial não vira taxa baixa: assume o lote consumido, avisa e não dá confiança média', () => {
+    const ms: MovementLike[] = [buy(0, 12), { kind: 'consumo', delta: -3, at: day(10) }, buy(20, 12), { kind: 'consumo', delta: -3, at: day(30) }, buy(40, 12)];
+    const f = forecastConsumption(ms, NOW(45), { unit: 'l' });
+    expect(f.ratePerDay).toBeCloseTo(0.6, 2); // e não 0,15
+    expect(f.daysLeft!).toBeLessThan(20);
+    expect(f.confidence).not.toBe('alta');
+    expect(f.explanation).toMatch(/registros de uso parecem incompletos/);
+  });
+
+  it('compras irregulares (só suposições) ficam com confiança baixa', () => {
+    const f = forecastConsumption([0, 5, 30, 33, 70].map((d) => buy(d, 12)), NOW(71));
+    expect(f.confidence).toBe('baixa');
+  });
+
+  it('após mudança de padrão a explicação é coerente (qtd / intervalo = taxa)', () => {
+    const f = forecastConsumption([0, 20, 40, 60, 80, 90, 100].map((d) => buy(d, 12)), NOW(101), { unit: 'l' });
+    expect(f.typicalIntervalDays).toBe(10);
+    expect(f.typicalQty! / f.typicalIntervalDays!).toBeCloseTo(f.ratePerDay!, 2);
+    expect(f.explanation).toContain('a cada ~10 dias (1,2 L/dia)');
+  });
+
+  it('taxa minúscula não aparece como "0"', () => {
+    const f = forecastConsumption([buy(0, 0.004), buy(3000, 0.004)], NOW(3001));
+    expect(f.explanation).toMatch(/\(menos de 0,01.*\/dia\)/);
+  });
+
+  it('desempenho: 600 movimentos em 1 produto calcula rápido', () => {
+    const ms: MovementLike[] = [];
+    for (let i = 0; i < 600; i++) ms.push(i % 3 === 0 ? buy(i * 2, 5) : { kind: 'consumo', delta: -1, at: day(i * 2) });
+    const t0 = performance.now();
+    forecastConsumption(ms, NOW(1300));
+    expect(performance.now() - t0).toBeLessThan(50);
+  });
+
   it('padrão regular: 12 L a cada 20 dias → 0,6 L/dia e data de esgotamento correta', () => {
     const f = forecastConsumption([buy(0, 12), buy(20, 12), buy(40, 12)], NOW(45), { unit: 'l' });
     expect(f.status).toBe('ok');
@@ -58,7 +92,7 @@ describe('forecastConsumption', () => {
     const f = forecastConsumption([buy(0, 4), buy(10, 4), buy(20, 4), buy(30, 40), buy(40, 4)], NOW(41), { unit: 'un' });
     expect(f.typicalQty).toBe(4);
     expect(f.ratePerDay).toBeCloseTo(0.4, 3);
-    expect(f.explanation).toMatch(/Ignorei a compra de 40 un/);
+    expect(f.explanation).toMatch(/A compra de 40 un em \d\d\/\d\d foi ignorada no cálculo do consumo.*conta no estoque/);
   });
 
   it('taxa atípica (3x) é descartada', () => {
@@ -89,15 +123,15 @@ describe('forecastConsumption', () => {
   it('consumo registrado entre compras define a taxa e o estoque usa o registro', () => {
     const ms: MovementLike[] = [
       buy(0, 10),
-      { kind: 'consumo', delta: -2, at: day(5) },
-      { kind: 'consumo', delta: -2, at: day(10) },
+      { kind: 'consumo', delta: -4, at: day(5) },
+      { kind: 'consumo', delta: -4, at: day(10) },
       buy(20, 10),
       { kind: 'consumo', delta: -3, at: day(24) },
     ];
     const f = forecastConsumption(ms, NOW(26));
-    expect(f.ratePerDay).toBeCloseTo(0.2, 3); // 4 usados em 20 dias
+    expect(f.ratePerDay).toBeCloseTo(0.4, 3); // 8 usados em 20 dias (sobra 2 < 50%)
     // estoque após registro: 10 + (10-4 sobra=6)... piso/soma = 13; menos 0,2 × 2 dias
-    expect(f.stockEstimate).toBeCloseTo(13 - 0.4, 2);
+    expect(f.stockEstimate).toBeCloseTo(12 - 3 - 0.4 * 2, 2);
     expect(f.confidence).toBe('baixa');
   });
 

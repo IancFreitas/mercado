@@ -50,6 +50,8 @@ export interface Forecast {
 
 interface Batch {
   t: number;
+  /** Instante da última compra agrupada neste lote. */
+  lastT: number;
   qty: number;
   /** Estoque logo depois da compra (inclui sobra anterior registrada). */
   stockAfter: number;
@@ -89,6 +91,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 function fmtNum(n: number): string {
+  if (n > 0 && n < 0.01) return 'menos de 0,01';
   return n.toLocaleString('pt-BR', { maximumFractionDigits: n < 10 ? 2 : 1 });
 }
 function fmtQtyUnit(n: number, unit: Unit | undefined): string {
@@ -114,43 +117,42 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
   for (const m of ms) {
     if (m.kind !== 'compra' || !(m.delta > 0)) continue;
     const prev = batches[batches.length - 1];
-    if (prev && (m.t - prev.t < DAY || dayKey.format(prev.t) === dayKey.format(m.t))) prev.qty += m.delta;
-    else batches.push({ t: m.t, qty: m.delta, stockAfter: 0 });
+    if (prev && (m.t - prev.t < DAY || dayKey.format(prev.t) === dayKey.format(m.t))) {
+      prev.qty += m.delta;
+      prev.lastT = m.t;
+    } else batches.push({ t: m.t, lastT: m.t, qty: m.delta, stockAfter: 0 });
   }
   if (batches.length === 0) return empty('sem_dados', 'Ainda não há compras registradas deste produto.');
   // Estoque "rastreado": sobra só é carregada para o lote seguinte se a janela anterior teve registros;
   // sem registros, assume-se que o lote anterior foi consumido (não acumula compras antigas).
   const lastIdx = batches.length - 1;
-  const windows: typeof ms[] = [];
+  const windows: (typeof ms)[] = batches.map(() => []);
+  {
+    // Uma passada: cada movimento (não-compra) vai para a janela do lote anterior a ele.
+    let idx = -1;
+    for (const m of ms) {
+      while (idx + 1 < batches.length && batches[idx + 1]!.t <= m.t) idx++;
+      if (m.kind === 'compra' || idx < 0 || m.t <= batches[idx]!.lastT) continue;
+      windows[idx]!.push(m);
+    }
+  }
+  const samples: Sample[] = [];
+  let incompleteNote = false;
   let carry = 0;
   for (let i = 0; i <= lastIdx; i++) {
     const b = batches[i]!;
     const endT = i < lastIdx ? batches[i + 1]!.t : Infinity;
-    const win = ms.filter((m) => m.t > batchEnd(b, batches, ms) && m.t < endT && m.kind !== 'compra');
-    windows.push(win);
-    b.stockAfter = round3(carry + b.qty);
-    let run = b.stockAfter;
-    for (const m of win) run = Math.max(0, round3(run + m.delta));
-    const hadRecords = win.some((m) => m.kind !== 'ainda_tem');
-    carry = hadRecords ? run : 0;
-  }
-
-  // 2) Amostras de taxa.
-  const samples: Sample[] = [];
-  for (let i = 0; i <= lastIdx; i++) {
-    const b = batches[i]!;
-    const endT = i < lastIdx ? batches[i + 1]!.t : Infinity;
     const win = windows[i]!;
+    b.stockAfter = round3(carry + b.qty);
     // (a) zerou depois da compra?
     let run = b.stockAfter;
     let zeroAt: number | undefined;
     for (const m of win) {
       run = Math.max(0, round3(run + m.delta));
-      if (run === 0 && (m.delta < 0 || m.kind === 'esgotado') && b.stockAfter > 0) {
-        zeroAt = m.t;
-        break;
-      }
+      if (zeroAt === undefined && run === 0 && (m.delta < 0 || m.kind === 'esgotado') && b.stockAfter > 0) zeroAt = m.t;
     }
+    const hadRecords = win.some((m) => m.kind !== 'ainda_tem');
+    carry = hadRecords ? run : 0;
     if (zeroAt !== undefined) {
       const days = (zeroAt - b.t) / DAY;
       if (days >= 1) samples.push({ rate: b.stockAfter / days, kind: 'direto', batch: i });
@@ -161,7 +163,15 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
     if (days < 1) continue;
     const used = -win.filter((m) => m.kind === 'consumo').reduce((s, m) => s + m.delta, 0);
     if (used > 0) {
-      samples.push({ rate: used / days, kind: 'consumo', batch: i });
+      if (run >= 0.5 * b.stockAfter) {
+        // Recomprou com metade ou mais ainda "em estoque" pelos registros: os "Usei" estão incompletos.
+        // Não vira taxa baixa: assume o lote consumido até a recompra (limite superior) e não carrega a sobra.
+        samples.push({ rate: b.qty / days, kind: 'assumido', batch: i });
+        incompleteNote = true;
+        carry = 0;
+      } else {
+        samples.push({ rate: used / days, kind: 'consumo', batch: i });
+      }
     } else if (win.length === 0) {
       samples.push({ rate: b.qty / days, kind: 'assumido', batch: i });
     }
@@ -192,7 +202,7 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
   let pool = recent.filter((s) => !bigBatches.has(s.batch));
   if (bigBatches.size > 0 && pool.length > 0) {
     const i = [...bigBatches].pop()!;
-    notes.push(`Ignorei a compra de ${fmtQtyUnit(batches[i]!.qty, unit)} em ${formatDayMonth(batches[i]!.t)}, fora do seu padrão.`);
+    notes.push(`A compra de ${fmtQtyUnit(batches[i]!.qty, unit)} em ${formatDayMonth(batches[i]!.t)} foi ignorada no cálculo do consumo (fora do seu padrão), mas conta no estoque.`);
   } else {
     pool = recent;
     bigBatches.clear();
@@ -200,6 +210,7 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
 
   let chosen = pool;
   let changed = false;
+  let recentBatches: number[] = [];
   if (pool.length >= 4) {
     const prevMed = median(pool.slice(0, -2).map((s) => s.rate));
     const last2 = pool.slice(-2);
@@ -207,6 +218,7 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
     if (prevMed > 0 && dev.every((d) => Math.abs(d) > 0.5) && dev[0]! * dev[1]! > 0) {
       chosen = last2;
       changed = true;
+      recentBatches = last2.map((x) => x.batch);
       notes.push('Seu consumo mudou nas últimas compras; usei só as mais recentes.');
     }
   }
@@ -223,16 +235,24 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
   if (!(rate > 0)) return empty('poucos_dados', 'Poucos dados ainda: o consumo medido foi zero.', 0, stockOf(ms));
 
   const keptBatches = batches.filter((_, i) => !bigBatches.has(i));
-  const typicalQty = r2(median(keptBatches.slice(-MAX_SAMPLES).map((b) => b.qty)));
+  let typicalQty = r2(median(keptBatches.slice(-MAX_SAMPLES).map((b) => b.qty)));
   const gaps: number[] = [];
   for (let i = 1; i < batches.length; i++) gaps.push((batches[i]!.t - batches[i - 1]!.t) / DAY);
-  const typicalIntervalDays = gaps.length ? r1(median(gaps.slice(-MAX_SAMPLES))) : undefined;
+  let typicalIntervalDays = gaps.length ? r1(median(gaps.slice(-MAX_SAMPLES))) : undefined;
+  if (changed) {
+    // Após mudança de padrão, quantidade e intervalo vêm só dos períodos recentes (coerentes com a taxa).
+    typicalQty = r2(median(recentBatches.map((i) => batches[i]!.qty)));
+    const rg = recentBatches.filter((i) => i < lastIdx).map((i) => (batches[i + 1]!.t - batches[i]!.t) / DAY);
+    typicalIntervalDays = rg.length ? r1(median(rg)) : r1(typicalQty / rate);
+  }
 
   // 4) Confiança.
   const n = chosen.length;
   const observed = chosen.some((s) => s.kind !== 'assumido');
-  let confidence: Confidence = n >= 4 && cv(chosen.map((s) => s.rate)) < 0.35 && observed ? 'alta' : n >= 2 ? 'media' : 'baixa';
-  if (!observed && confidence === 'alta') confidence = 'media';
+  const spread = cv(chosen.map((s) => s.rate));
+  let confidence: Confidence = n >= 4 && spread < 0.35 && observed ? 'alta' : n >= 2 && spread < 0.6 ? 'media' : 'baixa';
+  // Só suposições (recompra antecipada não é consumo) e irregulares: no máximo baixa.
+  if (!observed && spread >= 0.35) confidence = 'baixa';
 
   // 5) Estoque estimado e data de esgotamento.
   const last = batches[lastIdx]!;
@@ -262,14 +282,15 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
   const parts: string[] = [];
   const nBuys = batches.length;
   if (typicalIntervalDays !== undefined) {
-    parts.push(`Você compra cerca de ${fmtQtyUnit(typicalQty, unit)} a cada ~${fmtNum(Math.round(typicalIntervalDays))} dias (${fmtQtyUnit(r2(rate), unit)}/dia).`);
+    parts.push(`Você compra cerca de ${fmtQtyUnit(typicalQty, unit)} a cada ~${fmtNum(Math.round(typicalIntervalDays))} dias (${fmtQtyUnit(rate, unit)}/dia).`);
   } else {
-    parts.push(`Pelo que você registrou, o consumo é de cerca de ${fmtQtyUnit(r2(rate), unit)} por dia.`);
+    parts.push(`Pelo que você registrou, o consumo é de cerca de ${fmtQtyUnit(rate, unit)} por dia.`);
   }
   parts.push(`Última compra em ${formatDayMonth(lastStart)};`);
   parts.push(depletion <= now ? `já deveria ter acabado por volta de ${formatDayMonth(depletion)}.` : `deve acabar por volta de ${formatDayMonth(depletion)}.`);
   if (pushed) parts.push(`Você informou que ainda tinha em ${formatDayMonth(stillT!)}.`);
   parts.push(...notes);
+  if (incompleteNote) parts.push('Seus registros de uso parecem incompletos (sobrou muito quando você recomprou).');
   if (!observed) parts.push('Assumi que cada compra foi consumida até a seguinte.');
   parts.push(`Confiança ${CONFIDENCE_LABEL[confidence]} (${nBuys} ${nBuys === 1 ? 'compra' : 'compras'}).`);
 
@@ -285,13 +306,4 @@ export function forecastConsumption(movementsIn: MovementLike[], nowIn: Date | n
     samples: n,
     explanation: parts.join(' '),
   };
-}
-
-/** Instante em que o lote termina de ser "somado" (mesmo dia): usa o último movimento de compra agrupado. */
-function batchEnd(b: Batch, batches: Batch[], ms: { kind: MovementKind; t: number }[]): number {
-  const idx = batches.indexOf(b);
-  const next = batches[idx + 1]?.t ?? Infinity;
-  let end = b.t;
-  for (const m of ms) if (m.kind === 'compra' && m.t >= b.t && m.t < next) end = Math.max(end, m.t);
-  return end;
 }

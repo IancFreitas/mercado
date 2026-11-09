@@ -175,6 +175,11 @@ O app aprende com o seu histórico de compras (tudo calculado no próprio aparel
   previsão para frente. Mudar a quantidade em **Editar** também vale como registro.
 - **Ações:** **Adicionar** põe na lista (sem duplicar; se o produto já está na lista, ele some das sugestões); **Adiar** esconde por 7 dias;
   **Não sugerir** desliga a previsão do produto. Para religar, abra o produto na **Despensa** (toque no nome) e marque **Prever reposição**.
+- **Registros incompletos:** se você registra só alguns "Usei" e recompra com boa parte ainda "em estoque" pelos registros, o app
+  não usa esses "Usei" como consumo: supõe o lote consumido até a recompra e avisa na explicação. Compras muito irregulares
+  ficam com confiança *baixa*.
+- **Na lista:** produto já na lista (mesmo marcado no carrinho) não é sugerido; se a nota do carrinho nunca for importada, ele só volta
+  a ser sugerido depois de **Limpar** o carrinho. Nomes bem diferentes ("Leite Integral 1L" × "Leite") não são reconhecidos como o mesmo item.
 - Limites: a previsão é uma estimativa simples; compras de notas removidas depois continuam no histórico do estoque.
   Produtos cadastrados à mão sem nenhuma compra de nota não têm previsão.
 
