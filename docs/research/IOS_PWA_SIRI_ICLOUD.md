@@ -85,6 +85,8 @@
   **Não há código rodando em segundo plano no aparelho** além do handler `push`, e o push
   precisa sempre mostrar uma notificação (nada de push silencioso).
 
+- **Implementado (sem servidor):** selo no ícone (Badging API) com o nº de sugestões de reposição e um aviso local ao abrir o app (no máx. 1 por dia, opt-in em Casa › Avisos, permissão pedida só por gesto). **Push remoto ficou de fora:** exige servidor e chave VAPID secreta (gravar credencial depende de pedido explícito do dono). Código em `src/notify/`.
+
 ### 2.6 Sem execução em segundo plano [D]
 - Background Sync (`SyncManager`), Periodic Background Sync e Background Fetch: **não
   suportados**. O sync só acontece com o app aberto. Fonte: https://caniuse.com/background-sync

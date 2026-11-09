@@ -138,6 +138,36 @@ ficam comparáveis. Itens vendidos a granel (por kg ou L) já têm o preço por 
 Medidas que não são peso nem volume ("48MMx50M", "60X70", "23CM", "G120") são ignoradas: nesses casos não aparece
 preço por kg/L. O tamanho é lido do texto da nota (e do nome do item da lista no Modo compras); se a nota abreviar de forma incomum, a linha não aparece.
 
+### Nome da loja
+
+Em **Notas**, toque em **Nome da loja** na compra e digite um nome (ex.: "Casa das Tintas"). O nome vale para todas as notas do mesmo CNPJ
+da Casa e é sincronizado com os outros moradores. Onde antes aparecia só o CNPJ (Notas, Lista › preços pagos, Gastos por loja), passa a
+aparecer o nome, com o CNPJ em seguida ou em linha menor. O app não adivinha o nome: a página da SEFAZ copiada não é lida para isso.
+
+## Atalho: importar nota
+
+Atalho do iPhone que lê o QR, busca a página da nota na SEFAZ (o iPhone consegue; servidores de nuvem são bloqueados) e deixa o texto
+na área de transferência, abrindo o app já no painel de importação. **Não foi testado em um iPhone real**, e os nomes das ações podem
+variar conforme a versão do iOS; ajuste se algum nome for diferente.
+
+Passo a passo no app **Atalhos** (novo atalho, nomeie "Importar nota"):
+1. **Escanear QR ou Código de Barras** (aponte para o QR do cupom).
+2. **Obter Conteúdo do URL**, com a URL lida no passo 1 (método GET).
+3. **Criar Texto Rico com HTML** a partir do conteúdo obtido no passo 2 (se esta ação não existir na sua versão, use **Obter Texto da Entrada** direto do resultado do passo 2).
+4. **Obter Texto da Entrada** (vira texto simples, sem as marcações HTML).
+5. **Copiar para Área de Transferência** o texto do passo 4.
+6. **Codificar URL** da URL lida no passo 1 (ação "Codificar URL" / "Codificar", modo Codificar).
+7. **Abrir URLs** com `https://iancfreitas.github.io/mercado/#/notas?qr=` seguido do resultado do passo 6, e depois `&colar=1`.
+
+Como usar: rode o atalho e escaneie o QR. O app abre em Notas e pergunta "Registrar nota de <loja> (mês/ano)?"; nada é gravado
+sem o seu toque. Toque em **Registrar nota**; o painel de importação abre com o botão **Colar** em destaque. Toque em **Colar**
+(o iOS só deixa o app ler a área de transferência depois de um toque seu, e pode pedir permissão), depois **Ler texto** e
+**Confirmar importação**. Se o botão Colar não funcionar, toque no campo "Texto da nota" e use Colar do próprio teclado. Se a nota já
+estava registrada, o app não duplica. Só endereços de nota fiscal (gov.br) são aceitos; qualquer outro é recusado.
+
+Privacidade: o texto completo da página, inclusive CPF e nome do consumidor, vai para a área de transferência do seu iPhone (e
+fica lá até você copiar outra coisa). O app lê somente até "Chave de acesso" e não guarda nem lê o que vem depois.
+
 ## Modo compras
 
 Para usar no supermercado: toque em **Modo compras** no Início (ou o botão na Lista). Funciona totalmente offline.
@@ -145,7 +175,7 @@ Para usar no supermercado: toque em **Modo compras** no Início (ou o botão na 
 - **Preço encontrado** (opcional): digite o preço da prateleira. O app compara com o preço médio que você já pagou:
   "▲ acima do preço médio (+30%)", "▼ abaixo do preço médio" ou "● na média (±5%)". Se o nome do item traz o tamanho
   ("Sabão líquido 3L") e o histórico tem preço por kg/L, a comparação é por R$/kg ou R$/L; senão é pelo preço unitário, e se as unidades
-  não forem comparáveis aparece "sem comparação". Não é preciso preencher todos os preços. Um preço já gravado pode ser trocado, mas não apagado.
+  não forem comparáveis aparece "sem comparação". Não é preciso preencher todos os preços. Para apagar um preço gravado, deixe o campo vazio ou toque em **Limpar preço** (o total volta a usar o último preço pago).
 - **Total estimado**: soma (preço encontrado, ou o último preço pago) × quantidade, separado em "No carrinho" e "Faltam".
   Itens sem preço conhecido ficam fora da conta e são contados no aviso.
 - **Conferir com a lista**: depois de importar a nota, em **Notas** toque em **Conferir com a lista** na compra. O app casa os itens
@@ -204,6 +234,14 @@ O app aprende com o seu histórico de compras (tudo calculado no próprio aparel
   a ser sugerido depois de **Limpar** o carrinho. Nomes bem diferentes ("Leite Integral 1L" × "Leite") não são reconhecidos como o mesmo item.
 - Limites: a previsão é uma estimativa simples; compras de notas removidas depois continuam no histórico do estoque.
   Produtos cadastrados à mão sem nenhuma compra de nota não têm previsão.
+
+## Avisos
+
+O app mostra o que está acabando de duas formas, **sem servidor** e só com o app instalado na Tela de Início (iOS 16.4 ou mais novo):
+
+- **Número no ícone:** quantos itens estão nas sugestões de reposição (as mesmas de **Início** e **Lista**). Atualiza quando você abre o app ou volta a ele. No iPhone o número também depende de você permitir as notificações (veja abaixo) e de o app estar instalado na Tela de Início.
+- **Aviso ao abrir:** em **Casa › Avisos**, ligue **Avisar quando algo estiver acabando** e toque em Permitir. Ao abrir o app, no máximo uma vez por dia, aparece "N itens estão acabando: A, B, C". A escolha vale só para este aparelho.
+- **Limite:** com o app fechado o iPhone **não** recebe aviso; isso exigiria um servidor, que não está configurado. Se a seção disser que os avisos estão indisponíveis, instale o app (Compartilhar › Adicionar à Tela de Início) e abra por lá. Se bloqueou a permissão, libere em Ajustes do iPhone › Notificações.
 
 ## Ainda não disponível
 

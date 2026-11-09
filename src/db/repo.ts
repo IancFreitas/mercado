@@ -14,7 +14,7 @@ import {
 import { normalizeName, sanitizeText } from '../domain/text';
 import type { SyncEngine } from '../sync/engine';
 import type { NfceQr } from '../nfce/qrcode';
-import type { Purchase, PurchaseItem } from '../domain/types';
+import type { Purchase, PurchaseItem, Store } from '../domain/types';
 import type { ParsedNfce } from '../nfce/parseSefazText';
 import type { PriceEntry } from '../prices/priceMatch';
 
@@ -29,6 +29,11 @@ export async function purchaseIdFor(householdId: string, accessKey: string): Pro
 /** Id determinístico de um item da nota: mesma nota + mesmo índice = mesmo registro em qualquer aparelho. */
 export async function purchaseItemIdFor(householdId: string, purchaseId: string, index: number): Promise<string> {
   return uuidFromSeed(`purchaseItem|${householdId}|${purchaseId}|${index}`);
+}
+
+/** Id determinístico da loja: dois aparelhos que nomeiam o mesmo CNPJ na mesma Casa convergem no mesmo registro. */
+export async function storeIdFor(householdId: string, cnpj: string): Promise<string> {
+  return uuidFromSeed(`store|${householdId}|${cnpj}`);
 }
 
 export async function uuidFromSeed(seed: string): Promise<string> {
@@ -137,6 +142,7 @@ export class PantryRepo {
     householdId: string,
     itemId: string,
     changes: Partial<Pick<ShoppingListItem, 'name' | 'quantity' | 'unit' | 'category' | 'priority' | 'checked' | 'foundPriceCents'>>,
+    // foundPriceCents: null apaga o preço encontrado (grava null; leitores tratam null como ausente).
   ): Promise<ShoppingListItem> {
     const fields: Record<string, unknown> = { updatedBy: this.actorName() };
     if (changes.name !== undefined) {
@@ -150,7 +156,9 @@ export class PantryRepo {
     if (changes.category !== undefined && CATEGORIES.includes(changes.category)) fields.category = changes.category;
     if (changes.priority !== undefined) fields.priority = changes.priority;
     if (changes.checked !== undefined) fields.checked = !!changes.checked;
-    if (changes.foundPriceCents !== undefined) {
+    if (changes.foundPriceCents === null) {
+      fields.foundPriceCents = null;
+    } else if (changes.foundPriceCents !== undefined) {
       const c = Math.round(changes.foundPriceCents);
       if (c < 0 || c > 10_000_000) throw new Error('Preço inválido');
       fields.foundPriceCents = c;
@@ -297,6 +305,22 @@ export class PantryRepo {
         purchaseId: p.id,
       });
     }
+    return out;
+  }
+
+  /** Dá (ou troca) o nome da loja de um CNPJ. Id determinístico por Casa + CNPJ. */
+  async setStoreName(householdId: string, cnpj: string, name: string): Promise<Store> {
+    if (!/^\d{14}$/.test(cnpj)) throw new Error('CNPJ inválido');
+    const clean = sanitizeText(name, 60);
+    if (!clean) throw new Error('Informe o nome da loja');
+    return this.engine.mutate<Store>(householdId, 'stores', await storeIdFor(householdId, cnpj), { name: clean, cnpj, deleted: false });
+  }
+
+  /** Nomes de loja da Casa, por CNPJ (só desta Casa, sem excluídas). */
+  async storeNamesByCnpj(householdId: string): Promise<Map<string, string>> {
+    const all = await this.db.stores.where('householdId').equals(householdId).toArray();
+    const out = new Map<string, string>();
+    for (const s of all) if (!s.deleted && s.cnpj && s.name) out.set(s.cnpj, s.name.slice(0, 60));
     return out;
   }
 

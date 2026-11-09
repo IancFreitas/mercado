@@ -6,6 +6,7 @@ import { HouseScreen } from './HouseScreen';
 import { ListScreen } from './ListScreen';
 import { Onboarding } from './Onboarding';
 import { OfflineBanner, SyncBadge, Toast } from './components';
+import { useReplenishmentBadge } from '../notify/useReplenishmentBadge';
 import { navigate, useRoute, type Tab } from './router';
 
 // Carregada sob demanda: o leitor de QR (jsQR) não pesa na abertura do app.
@@ -23,6 +24,11 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'despensa', label: 'Despensa', icon: '🥫' },
   { id: 'casa', label: 'Casa', icon: '👥' },
 ];
+
+function BadgeEffect() {
+  useReplenishmentBadge();
+  return null;
+}
 
 export function App() {
   const { session } = useApp();
@@ -44,6 +50,7 @@ export function App() {
 
   return (
     <div className="app">
+      <BadgeEffect />
       <header className="topbar">
         <span className="topbar-title">{TITLES[route.tab] ?? TABS.find((t) => t.id === route.tab)?.label}</span>
         <SyncBadge />

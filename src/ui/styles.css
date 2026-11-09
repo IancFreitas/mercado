@@ -212,3 +212,6 @@ a.btn { text-decoration: none; text-align: center; }
 @media (prefers-color-scheme: dark) { .cmp-abaixo { color: var(--accent); } }
 .cmp-media, .cmp-sem { color: var(--muted); }
 .recon-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+
+/* Atalho: destaque do botão Colar */
+.paste-hl { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }

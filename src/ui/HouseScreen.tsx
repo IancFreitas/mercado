@@ -5,6 +5,7 @@ import { saveConfig } from '../app/services';
 import { exportBackup, restoreBackup } from '../backup/backup';
 import { SupabaseBackend, validateConfig } from '../sync/supabase';
 import { Section } from './components';
+import { NotifySettings } from '../notify/NotifySettings';
 import { normalizeName } from '../domain/text';
 
 export function HouseScreen() {
@@ -43,6 +44,7 @@ export function HouseScreen() {
       </Section>
 
       <SharingSection />
+      <NotifySettings />
       <ConflictsSection />
       <RejectedSection />
       <BackupSection />

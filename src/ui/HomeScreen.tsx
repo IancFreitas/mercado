@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../app/AppContext';
-import { formatCnpj } from '../nfce/accessKey';
+import { storeLabel } from '../stores/stores';
+import { useStoreNames } from '../stores/useStoreNames';
 import { pantryFor, splitStock, type StockRow } from '../pantry/pantry';
 import { TIMEZONE, currentMonthKey, monthLabel, spendingPurchases, summarizeMonth } from '../spending/spending';
 import { Section, formatBRL, formatQty } from './components';
@@ -13,6 +14,7 @@ export function HomeScreen() {
   const { s, session } = useApp();
   const hid = session.householdId!;
   const list = useDefaultList();
+  const storeNames = useStoreNames();
   const household = useLiveQuery(() => s.db.households.get(hid), [hid]);
   const pending = useLiveQuery(
     async () => (list ? (await s.repo.listItems(hid, list.id)).filter((i) => !i.checked) : []),
@@ -92,7 +94,7 @@ export function HomeScreen() {
         {recent.map((p) => (
           <div className="row" key={p.id} data-testid="home-recent">
             <span className="grow">
-              {p.issuerCnpj ? formatCnpj(p.issuerCnpj) : 'Compra'}
+              {storeLabel(p.issuerCnpj, storeNames)}
               <span className="item-meta" style={{ display: 'block' }}>
                 {new Date(p.purchasedAt).toLocaleDateString('pt-BR', { timeZone: TIMEZONE })}
                 {p.status === 'pendente' ? ' · itens pendentes' : ''}

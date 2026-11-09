@@ -4,7 +4,8 @@ import { useApp } from '../app/AppContext';
 import { findDuplicates } from '../db/repo';
 import { CATEGORIES, type Category, type ShoppingListItem, type Unit } from '../domain/types';
 import { formatQty, formatBRL } from './components';
-import { formatCnpj } from '../nfce/accessKey';
+import { storeLabelWithCnpj } from '../stores/stores';
+import { useStoreNames } from '../stores/useStoreNames';
 import { baseUnitLabel } from '../prices/packageSize';
 import { navigate } from './router';
 import { CONFIDENCE_LABEL } from '../predict/consumption';
@@ -258,6 +259,12 @@ function priceLine(st: PriceStats): string {
   return parts.join(' · ');
 }
 
+/** Só é montado com o bloco "Preços pagos" aberto (evita uma consulta por linha da lista). */
+function StoreSuffix({ cnpj }: { cnpj: string }) {
+  const names = useStoreNames();
+  return <> · loja {storeLabelWithCnpj(cnpj, names)}</>;
+}
+
 function ItemRow({ item, stats, editing, onEdit }: { item: ShoppingListItem; stats?: PriceStats; editing: boolean; onEdit: () => void }) {
   const { s, session } = useApp();
   const hid = session.householdId!;
@@ -296,7 +303,7 @@ function ItemRow({ item, stats, editing, onEdit }: { item: ShoppingListItem; sta
             {stats.matches.slice(0, 5).map((m, k) => (
               <li key={`${m.purchaseId}-${k}`}>
                 {fmtDay(m.purchasedAt)} · {formatBRL(m.unitPriceCents)}/{m.unit} · {m.rawDescription}
-                {m.storeCnpj && ` · loja ${formatCnpj(m.storeCnpj)}`}
+                {m.storeCnpj && <StoreSuffix cnpj={m.storeCnpj} />}
               </li>
             ))}
           </ul>
