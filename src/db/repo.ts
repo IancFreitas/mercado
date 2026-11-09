@@ -320,7 +320,7 @@ export class PantryRepo {
   async storeNamesByCnpj(householdId: string): Promise<Map<string, string>> {
     const all = await this.db.stores.where('householdId').equals(householdId).toArray();
     const out = new Map<string, string>();
-    for (const s of all) if (!s.deleted && s.cnpj && s.name) out.set(s.cnpj, s.name);
+    for (const s of all) if (!s.deleted && s.cnpj && s.name) out.set(s.cnpj, s.name.slice(0, 60));
     return out;
   }
 

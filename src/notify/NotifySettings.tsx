@@ -29,7 +29,7 @@ export function NotifySettings() {
   return (
     <Section
       title="Avisos"
-      footer="No iPhone, os avisos só aparecem quando você abre o app (no máximo um por dia); avisos com o app fechado precisam de um servidor (não configurado). O número no ícone mostra quantos itens estão acabando."
+      footer="No iPhone, os avisos só aparecem quando você abre o app (no máximo um por dia); avisos com o app fechado precisam de um servidor (não configurado). O número no ícone mostra quantos itens estão acabando, mas no iPhone também só funciona com o app instalado e as notificações permitidas."
     >
       {unsupported ? (
         <p className="empty">Avisos indisponíveis aqui. No iPhone, instale o app: Compartilhar → Adicionar à Tela de Início, e abra por lá.</p>

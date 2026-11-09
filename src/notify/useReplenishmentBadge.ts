@@ -16,13 +16,18 @@ export function useReplenishmentBadge(): void {
 
   useEffect(() => {
     let off = false;
+    let busy = false;
     const refresh = async () => {
+      if (busy) return; // evita disparo duplo (abertura + visibilitychange)
+      busy = true;
       let list: Suggestion[];
       try {
         list = await loadSuggestions(s.repo, hid);
       } catch {
+        busy = false;
         return;
       }
+      busy = false;
       if (off) return;
       void updateAppBadge(list.length);
       void maybeNotifyOnOpen(s.db, list);
