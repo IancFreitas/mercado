@@ -16,6 +16,8 @@ describe('matchesListItem', () => {
     ['Tinta acrílica', TINTA],
     ['TINTA', 'tinta'],
     ['Pão de forma', 'PAO FORMA PULLMAN 500G'],
+    ['Ovo', 'OVOS BRANCOS'],
+    ['Ovos', 'OVO BRANCO'],
   ])('%s casa %s', (l, d) => expect(matchesListItem(l, d)).toBe(true));
 
   it.each([
@@ -27,6 +29,7 @@ describe('matchesListItem', () => {
     ['20l', TINTA],
     ['Sal', 'SALSICHA HOT DOG'],
     ['Sabonete', 'SAB OMO LQD 3L'],
+    ['Sal', 'SALSA MOLHO'],
   ])('%s não casa %s', (l, d) => expect(matchesListItem(l, d)).toBe(false));
 });
 

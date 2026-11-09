@@ -167,3 +167,5 @@ a.btn { text-decoration: none; text-align: center; }
 
 .price-block { flex-basis: 100%; padding: 0 0 8px 40px; font-size: 13px; color: var(--muted); }
 .price-block ul { margin: 4px 0 0; padding-left: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.price-line { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

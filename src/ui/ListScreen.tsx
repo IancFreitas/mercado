@@ -5,7 +5,7 @@ import { findDuplicates } from '../db/repo';
 import { CATEGORIES, type Category, type ShoppingListItem, type Unit } from '../domain/types';
 import { formatQty, formatBRL } from './components';
 import { formatCnpj } from '../nfce/accessKey';
-import { priceStatsFor, type PriceEntry, type PriceStats } from '../prices/priceMatch';
+import { prepareEntries, priceStatsPrepared, type PriceEntry, type PriceStats } from '../prices/priceMatch';
 
 const UNITS: Unit[] = ['un', 'kg', 'g', 'l', 'ml', 'pct', 'cx', 'dz'];
 const MAX_REMOVED = 30;
@@ -63,16 +63,17 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
   const pending = active.filter((i) => !i.checked);
   const inCart = active.filter((i) => i.checked);
   const removed = items.filter((i) => i.deleted).sort((a, b) => (a._v.deleted! < b._v.deleted! ? 1 : -1)).slice(0, MAX_REMOVED);
+  const prepared = useMemo(() => prepareEntries(entries), [entries]);
   const stats = useMemo(() => {
     const m = new Map<string, PriceStats>();
-    if (entries.length === 0) return m;
+    if (prepared.length === 0) return m;
     for (const i of items) {
       if (i.deleted) continue;
-      const st = priceStatsFor(i.name, entries);
+      const st = priceStatsPrepared(i.name, prepared);
       if (st) m.set(i.id, st);
     }
     return m;
-  }, [items, entries]);
+  }, [items, prepared]);
   const dups = useMemo(() => findDuplicates(active), [active]);
   const groups = useMemo(() => {
     const m = new Map<string, ShoppingListItem[]>();
@@ -217,12 +218,17 @@ function sortItems(a: ShoppingListItem, b: ShoppingListItem): number {
   return p[a.priority] - p[b.priority] || a.name.localeCompare(b.name, 'pt-BR');
 }
 
-const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+const fmtDay = (iso: string) => {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', ...(sameYear ? {} : { year: 'numeric' }), timeZone: 'America/Sao_Paulo' });
+};
 
 function priceLine(st: PriceStats): string {
   const u = st.last.unit === 'un' ? '' : `/${st.last.unit}`;
   const parts = [`Último ${formatBRL(st.last.unitPriceCents)}${u}`, fmtDay(st.last.purchasedAt)];
   if (st.count >= 2) parts.push(`médio ${formatBRL(st.avgUnitCents)}${u}`);
+  parts.push(st.last.rawDescription);
   return parts.join(' · ');
 }
 
@@ -252,6 +258,7 @@ function ItemRow({ item, stats, editing, onEdit }: { item: ShoppingListItem; sta
         </span>
         {stats && (
           <span className="item-meta price-line" data-testid="price-line">
+            <span className="sr-only">Preço pago: </span>
             {priceLine(stats)}
           </span>
         )}

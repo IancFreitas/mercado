@@ -117,7 +117,7 @@ Limitações conhecidas: preços unitários com mais de 2 casas (ex.: combustív
 ## Preços na lista
 
 Cada item da lista de compras que combina com algum produto de uma nota **importada** mostra, abaixo do nome,
-uma linha como "Último R$ 12,90 · 19/09 · médio R$ 12,50" (o médio aparece com 2 ou mais compras).
+uma linha como "Último R$ 12,90 · 19/09 · médio R$ 12,50 · FITA CREPE BRANCA 48MMx50M" (o final é o produto da nota associado, para você conferir) (o médio aparece com 2 ou mais compras).
 Toque no item para ver "Preços pagos": até 5 compras com data, preço unitário, descrição na nota e CNPJ da loja.
 
 Como funciona: o app compara as palavras do nome do item com a descrição da nota, ignorando acentos e
@@ -128,7 +128,7 @@ notas pendentes ou removidas são ignoradas. Nada é enviado ou alterado: é ape
 
 Limitações: embalagens diferentes (ex.: 900 ml e 3 L) ainda não são comparadas; preço médio e mínimo
 só consideram compras na mesma unidade da última. Associações podem errar quando o nome é genérico
-(ex.: "Fita" também encontra fita isolante): use um nome mais específico.
+(ex.: "Fita" também encontra fita isolante; "Leite" pode encontrar leite condensado ou creme de leite; "Pão", "Tomate" e "Sal" também): confira o produto mostrado na linha e use um nome mais específico. Abreviações muito cortadas (ex.: "QJO" para queijo) não são reconhecidas.
 
 ## Ainda não disponível
 
