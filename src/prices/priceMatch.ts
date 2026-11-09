@@ -1,5 +1,6 @@
 import { normalizeName } from '../domain/text';
 import type { Unit } from '../domain/types';
+import { normalizedUnitPrice, type NormalizedPrice } from './packageSize';
 
 /**
  * Associação entre itens da lista de compras ("Tinta") e descrições de notas
@@ -87,6 +88,11 @@ export interface PriceStats {
   last: Pick<PriceEntry, 'unitPriceCents' | 'unit' | 'purchasedAt' | 'storeCnpj' | 'rawDescription'>;
   avgUnitCents: number;
   minUnitCents: number;
+  /** Preço por kg/l/un da compra mais recente que tem embalagem reconhecida (ou venda a granel). */
+  normalizedLast?: NormalizedPrice;
+  /** Média por kg/l/un (mesma unidade-base de normalizedLast) e quantas compras entraram nela. */
+  normalizedAvg?: number;
+  normalizedCount?: number;
   /** Todas as compras associadas, da mais recente para a mais antiga (unidades podem variar). */
   matches: PriceEntry[];
 }
@@ -116,7 +122,19 @@ export function priceStatsPrepared(listName: string, prepared: PreparedEntry[]):
   if (!first) return null;
   const same = matches.filter((m) => m.unit === first.unit);
   const prices = same.map((m) => m.unitPriceCents);
+  let normalizedLast: NormalizedPrice | undefined;
+  let normalizedAvg: number | undefined;
+  let normalizedCount: number | undefined;
+  const norms = matches.map((m) => normalizedUnitPrice(m));
+  const firstNorm = norms.find((n): n is NormalizedPrice => n !== null);
+  if (firstNorm) {
+    const sameBase = norms.filter((n): n is NormalizedPrice => n !== null && n.unit === firstNorm.unit);
+    normalizedLast = firstNorm;
+    normalizedCount = sameBase.length;
+    normalizedAvg = Math.round(sameBase.reduce((acc, n) => acc + n.cents, 0) / sameBase.length);
+  }
   return {
+    ...(normalizedLast ? { normalizedLast, normalizedAvg, normalizedCount } : {}),
     count: same.length,
     last: {
       unitPriceCents: first.unitPriceCents,

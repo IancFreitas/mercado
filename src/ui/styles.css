@@ -189,3 +189,25 @@ a.btn { text-decoration: none; text-align: center; }
 .sugg-row .row-main { flex: 1 1 180px; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .sugg-why { margin: 2px 0 0; }
 .prediction-box { flex-direction: column; align-items: flex-start; padding-left: 12px; gap: 6px; }
+
+/* Modo compras */
+.shop-total { padding: 12px 16px; }
+.shop-total-main { display: flex; justify-content: space-between; align-items: baseline; font-size: 18px; }
+.shop-total-main strong { font-size: 28px; }
+.shop-total-sub { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; margin-top: 4px; font-size: 15px; }
+.shop-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 16px; border-bottom: 0.5px solid var(--sep); }
+.shop-row:last-child { border-bottom: 0; }
+.shop-row.checked .shop-name { text-decoration: line-through; color: var(--muted); }
+.shop-main { display: flex; align-items: center; gap: 14px; min-height: 56px; width: 100%; background: none; border: 0; padding: 4px 0; text-align: left; }
+.shop-box { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+.shop-box.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.shop-text { display: flex; flex-direction: column; min-width: 0; }
+.shop-name { font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
+.shop-price { display: flex; flex-direction: column; gap: 4px; padding-left: 50px; }
+.shop-price-label { display: flex; flex-direction: column; gap: 2px; }
+.shop-input { max-width: 180px; }
+.cmp { font-size: 15px; font-weight: 600; }
+.cmp-acima { color: var(--red); }
+.cmp-abaixo { color: var(--green, #1a7f37); }
+.cmp-media, .cmp-sem { color: var(--muted); }
+.recon-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }

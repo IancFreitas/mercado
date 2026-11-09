@@ -37,6 +37,14 @@
 - Decisão: produtos antigos tinham `predictionEnabled:false` só por padrão; novos nascem `true`, e o marcador `predictionSetByUser` distingue escolha do usuário do padrão legado.
 - Testes: `tests/unit/predict.test.ts`, `tests/e2e/predict.spec.ts`. Pendente: validação em iPhone real e ajuste dos limiares com dados reais.
 
+## Fase 4 (parcial) — preço por kg/L e Modo compras (2026-11-09)
+- ✅ `src/prices/packageSize.ts` (`parsePackage`, `normalizedUnitPrice`, puro); `PriceStats` ganhou `normalizedLast/normalizedAvg/normalizedCount`; linha da Lista mostra R$/kg|L.
+- ✅ Modo compras (`src/ui/ShoppingScreen.tsx`, rota `#/compras`, lazy; botão no Início e na Lista): Faltam/No carrinho, preço encontrado opcional
+  (`updateItem foundPriceCents`), alerta acima/abaixo/média (±5%), total estimado. Lógica pura em `src/shopping/shopping.ts` e `reconcile.ts`.
+- ✅ Reconciliação: Notas › "Conferir com a lista" › "Limpar comprados".
+- Sem mudança de esquema Dexie, sync ou Supabase; escritas via `repo` (engine.mutate). Testes: `package-size.test.ts`, `shopping.test.ts`, `shopping.spec.ts`.
+- Limitações: preço encontrado não pode ser apagado depois de gravado; a unidade 'un' do item contra histórico em kg não é comparada ("sem comparação"); Web Push ainda pendente.
+
 ## Em andamento / bloqueado
 | Item | Bloqueio |
 |---|---|

@@ -46,7 +46,8 @@ entre compras, descarte de outliers, intervalo de confiança simples, correçõe
 usuário), sugestões com explicação, lista inteligente.
 
 ## Fase 4 — Experiência avançada ⬜
-Modo compras (preço encontrado × histórico, total estimado, reconciliação com
-NFC-e), Web Push (iOS 16.4+, só instalado), Atalhos/Siri (deep links ✅ já
+✅ Preço normalizado por kg/L (`src/prices/packageSize.ts`) e Modo compras (`#/compras`: preço encontrado × histórico,
+total estimado, reconciliação com NFC-e em Notas; `src/shopping/`).
+⬜ Web Push (iOS 16.4+, só instalado), Atalhos/Siri (deep links ✅ já
 existe `#/lista?add=`; consultas exigem Edge Function + token de atalho),
 desempenho, guia de instalação para amigos.

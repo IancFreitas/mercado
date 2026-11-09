@@ -13,7 +13,9 @@ const ScanScreen = lazy(() => import('./ScanScreen').then((m) => ({ default: m.S
 
 const SpendingScreen = lazy(() => import('./SpendingScreen').then((m) => ({ default: m.SpendingScreen })));
 
-const TITLES: Partial<Record<Tab, string>> = { notas: 'Notas', gastos: 'Gastos' };
+const ShoppingScreen = lazy(() => import('./ShoppingScreen').then((m) => ({ default: m.ShoppingScreen })));
+
+const TITLES: Partial<Record<Tab, string>> = { notas: 'Notas', gastos: 'Gastos', compras: 'Compras' };
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'inicio', label: 'Início', icon: '🏠' },
@@ -55,6 +57,11 @@ export function App() {
         {route.tab === 'notas' && (
           <Suspense fallback={<p className="empty">Carregando…</p>}>
             <ScanScreen />
+          </Suspense>
+        )}
+        {route.tab === 'compras' && (
+          <Suspense fallback={<p className="empty">Carregando…</p>}>
+            <ShoppingScreen />
           </Suspense>
         )}
         {route.tab === 'gastos' && (

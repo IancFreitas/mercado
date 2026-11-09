@@ -126,9 +126,31 @@ palavras do nome (3+ letras) precisam aparecer, e números/medidas devem bater (
 Nomes muito curtos (menos de 3 letras) não encontram nada. Só entram notas já importadas e da sua Casa;
 notas pendentes ou removidas são ignoradas. Nada é enviado ou alterado: é apenas leitura.
 
-Limitações: embalagens diferentes (ex.: 900 ml e 3 L) ainda não são comparadas; preço médio e mínimo
-só consideram compras na mesma unidade da última. Associações podem errar quando o nome é genérico
+Limitações: o preço médio e o mínimo (por unidade de venda) só consideram compras na mesma unidade da última; para comparar embalagens diferentes use o preço por kg/L (próxima seção). Associações podem errar quando o nome é genérico
 (ex.: "Fita" também encontra fita isolante; "Leite" pode encontrar leite condensado ou creme de leite; "Pão", "Tomate" e "Sal" também): confira o produto mostrado na linha e use um nome mais específico. Abreviações muito cortadas (ex.: "QJO" para queijo) não são reconhecidas.
+
+## Preço por kg/L
+
+Quando a descrição da nota traz o tamanho da embalagem, a linha de preço da Lista acrescenta o preço
+normalizado, como "R$ 1,31/kg" ou "R$ 11,00/L". Reconhece "3L", "3 L", "1,5L", "900ML", "500G", "5KG", "55KG", "2LT"
+e multipacks ("12X1L", "6X200ML", "C/12", "12UN"); gramas viram kg e mililitros viram litros. Assim 900 ml e 3 L
+ficam comparáveis. Itens vendidos a granel (por kg ou L) já têm o preço por kg/L.
+Medidas que não são peso nem volume ("48MMx50M", "60X70", "23CM", "G120") são ignoradas: nesses casos não aparece
+preço por kg/L. O tamanho é lido do texto da nota (e do nome do item da lista no Modo compras); se a nota abreviar de forma incomum, a linha não aparece.
+
+## Modo compras
+
+Para usar no supermercado: toque em **Modo compras** no Início (ou o botão na Lista). Funciona totalmente offline.
+- **Faltam** e **No carrinho**: itens grandes; toque no item para pôr no carrinho (ou tirar).
+- **Preço encontrado** (opcional): digite o preço da prateleira. O app compara com o preço médio que você já pagou:
+  "▲ acima do preço médio (+30%)", "▼ abaixo do preço médio" ou "● na média (±5%)". Se o nome do item traz o tamanho
+  ("Sabão líquido 3L") e o histórico tem preço por kg/L, a comparação é por R$/kg ou R$/L; senão é pelo preço unitário, e se as unidades
+  não forem comparáveis aparece "sem comparação". Não é preciso preencher todos os preços. Um preço já gravado pode ser trocado, mas não apagado.
+- **Total estimado**: soma (preço encontrado, ou o último preço pago) × quantidade, separado em "No carrinho" e "Faltam".
+  Itens sem preço conhecido ficam fora da conta e são contados no aviso.
+- **Conferir com a lista**: depois de importar a nota, em **Notas** toque em **Conferir com a lista** na compra. O app casa os itens
+  marcados da lista com os da nota e mostra preço encontrado × pago. **Limpar comprados** remove da lista os marcados que casaram
+  (dá para restaurar em "removidos recentemente"). Itens marcados que não vieram na nota continuam na lista.
 
 ## Despensa
 
@@ -185,4 +207,4 @@ O app aprende com o seu histórico de compras (tudo calculado no próprio aparel
 
 ## Ainda não disponível
 
-Histórico de preços completo e modo compras são as próximas fases. O app mostra essas áreas como "em breve".
+Histórico de preços completo (gráficos, mínimo/máximo por loja) ainda não existe.
