@@ -30,6 +30,13 @@
   cartões reais no Início. Testes: `pantry.test.ts`, `spending.test.ts`, `pantry.spec.ts`. Sem mudança de esquema Dexie, sync ou Supabase
   (só o campo opcional `Product.unit`). Pendente: validação em iPhone real; categorias automáticas (hoje 'Outros' até o usuário editar).
 
+## Fase 3 — previsão e sugestões (2026-11-09)
+- ✅ `src/predict/consumption.ts` (previsão pura, tempo injetado) e `src/predict/suggestions.ts` (sugestões + ações adicionar/adiar/não sugerir).
+  UI: Início (Próximos da reposição), Lista (Sugestões, recolhível, "Por que sugeriu?"), Despensa (previsão + interruptor "Prever reposição").
+- Sem mudança de esquema Dexie, sync ou Supabase: só campos opcionais em `Product` (`snoozedUntil`, `predictionSetByUser`) e `productId` opcional em `addItem`.
+- Decisão: produtos antigos tinham `predictionEnabled:false` só por padrão; novos nascem `true`, e o marcador `predictionSetByUser` distingue escolha do usuário do padrão legado.
+- Testes: `tests/unit/predict.test.ts`, `tests/e2e/predict.spec.ts`. Pendente: validação em iPhone real e ajuste dos limiares com dados reais.
+
 ## Em andamento / bloqueado
 | Item | Bloqueio |
 |---|---|

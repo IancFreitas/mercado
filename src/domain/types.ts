@@ -111,6 +111,13 @@ export interface Product extends BaseRecord {
   /** Grupo de equivalência (ex.: "leite integral") para substitutos. */
   equivalenceGroup?: string;
   predictionEnabled: boolean;
+  /**
+   * true quando o usuário mexeu no interruptor "Prever reposição". Produtos antigos têm
+   * `predictionEnabled: false` apenas por padrão; sem este marcador a previsão fica LIGADA.
+   */
+  predictionSetByUser?: boolean;
+  /** Sugestão de reposição adiada até este instante (ISO). */
+  snoozedUntil?: string;
   /** Unidade em que o estoque é contado (definida ao criar a partir da nota). */
   unit?: Unit;
 }

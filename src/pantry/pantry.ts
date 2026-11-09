@@ -235,7 +235,7 @@ export class PantryService {
           name: titleCase(it.rawDescription) || it.rawDescription.slice(0, 80),
           category: 'Outros',
           unit: it.unit,
-          predictionEnabled: false,
+          predictionEnabled: true,
           deleted: false,
         });
         result.products++;
@@ -269,7 +269,7 @@ export class PantryService {
         name,
         category,
         unit,
-        predictionEnabled: false,
+        predictionEnabled: true,
         deleted: false,
       });
       created = true;

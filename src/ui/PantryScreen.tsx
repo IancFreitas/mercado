@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../app/AppContext';
 import { CATEGORIES, type Category, type InventoryMovement, type Unit } from '../domain/types';
 import { MOVEMENT_LABELS, groupByCategory, pantryFor, splitStock, type StockRow } from '../pantry/pantry';
+import { CONFIDENCE_LABEL } from '../predict/consumption';
+import { forecastProduct, isSnoozed, predictionOn, setPredictionEnabled } from '../predict/suggestions';
 import { TIMEZONE } from '../spending/spending';
 import { Section, formatQty } from './components';
 
@@ -169,6 +171,7 @@ function ProductRow({ row, isOut }: { row: StockRow; isOut?: boolean }) {
         </button>
       </div>
       {panel === 'edit' && <EditPanel row={row} onDone={() => setPanel('none')} />}
+      {panel === 'hist' && <PredictionBox row={row} />}
       {panel === 'hist' && <History row={row} />}
     </li>
   );
@@ -251,6 +254,50 @@ function History({ row }: { row: StockRow }) {
           </strong>
         </div>
       ))}
+    </div>
+  );
+}
+
+function PredictionBox({ row }: { row: StockRow }) {
+  const { s, session, toast } = useApp();
+  const hid = session.householdId!;
+  const p = row.product;
+  const saved = predictionOn(p);
+  const [on, setOn] = useState(saved);
+  useEffect(() => setOn(saved), [saved]);
+  const f = useLiveQuery(() => forecastProduct(s.repo, hid, p.id), [hid, p.id, row.lastMovementAt, row.quantity]);
+  return (
+    <div className="row-edit import-box prediction-box" data-testid="prediction-box">
+      <label className="pantry-qty">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => {
+            const v = e.target.checked;
+            setOn(v);
+            setPredictionEnabled(s.repo, hid, p.id, v).catch((err) => {
+              setOn(saved);
+              toast((err as Error).message);
+            });
+          }}
+        />{' '}
+        Prever reposição
+      </label>
+      {!on && <span className="muted">Desligado: este produto não aparece nas sugestões.</span>}
+      {on && !f && <span className="muted">Calculando…</span>}
+      {on && f && f.status !== 'ok' && <span className="muted" data-testid="prediction-text">{f.status === 'sem_dados' ? 'Poucos dados ainda.' : f.explanation}</span>}
+      {on && f && f.status === 'ok' && (
+        <>
+          <span data-testid="prediction-text">
+            <strong>
+              {f.stockEstimate! <= 0 ? 'Provavelmente já acabou' : `Deve acabar por volta de ${fmtDate(f.depletionDate!)}`}
+            </strong>{' '}
+            · Confiança {CONFIDENCE_LABEL[f.confidence]}
+          </span>
+          <span className="muted">{f.explanation}</span>
+        </>
+      )}
+      {on && isSnoozed(p, Date.now()) && <span className="muted">Sugestão adiada até {fmtDate(p.snoozedUntil!)}.</span>}
     </div>
   );
 }

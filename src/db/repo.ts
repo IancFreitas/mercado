@@ -46,6 +46,7 @@ export interface NewItemInput {
   category?: Category;
   priority?: Priority;
   source?: ShoppingListItem['source'];
+  productId?: string;
 }
 
 export class PantryRepo {
@@ -122,6 +123,7 @@ export class PantryRepo {
       category,
       priority,
       checked: false,
+      ...(input.productId ? { productId: input.productId } : {}),
       source: input.source ?? 'manual',
       createdAt: this.nowIso(),
       createdBy: this.actorName(),
