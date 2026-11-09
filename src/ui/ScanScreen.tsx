@@ -6,6 +6,7 @@ import { decodeFile, decodeFrom } from '../nfce/decodeImage';
 import { parseNfceQr, type NfceQr } from '../nfce/qrcode';
 import { parseSefazText, type ParsedNfce } from '../nfce/parseSefazText';
 import type { Purchase } from '../domain/types';
+import { pantryFor } from '../pantry/pantry';
 import { Section, formatBRL } from './components';
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -163,6 +164,27 @@ function PurchaseRow({ p }: { p: Purchase }) {
           {open ? 'Ocultar itens' : 'Ver itens'}
         </button>
       )}
+      {!pending && (
+        <button
+          className="link"
+          onClick={async () => {
+            try {
+              const r = await pantryFor(s.repo).addPurchaseToPantry(hid, p.id);
+              toast(
+                r.movements > 0
+                  ? `${r.movements} produto(s) adicionados à despensa${r.ignored ? ` · ${r.ignored} item(ns) ignorado(s): unidade diferente do produto` : ''}`
+                  : r.already > 0
+                    ? 'Esta nota já estava na despensa'
+                    : `Nenhum item pôde ser adicionado${r.ignored ? ` (${r.ignored} ignorado(s): unidade diferente do produto)` : ''}`,
+              );
+            } catch (e) {
+              toast((e as Error).message);
+            }
+          }}
+        >
+          Adicionar à despensa
+        </button>
+      )}
       {p.consultUrl && (
         <a className="link" href={p.consultUrl} target="_blank" rel="noopener noreferrer">
           SEFAZ
@@ -175,7 +197,7 @@ function PurchaseRow({ p }: { p: Purchase }) {
       >
         Remover
       </button>
-      {open && pending && <ImportPanel purchase={p} onDone={() => { setOpen(false); toast('Itens importados'); }} onCancel={() => setOpen(false)} />}
+      {open && pending && <ImportPanel purchase={p} onDone={(msg) => { setOpen(false); toast(msg); }} onCancel={() => setOpen(false)} />}
       {open && !pending && <PurchaseItems purchase={p} />}
     </li>
   );
@@ -201,7 +223,7 @@ function PurchaseItems({ purchase }: { purchase: Purchase }) {
   );
 }
 
-function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDone: () => void; onCancel: () => void }) {
+function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDone: (msg: string) => void; onCancel: () => void }) {
   const { s, session } = useApp();
   const hid = session.householdId!;
   const [text, setText] = useState('');
@@ -209,6 +231,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [unverified, setUnverified] = useState(false);
+  const [toPantry, setToPantry] = useState(true);
 
   async function paste() {
     try {
@@ -235,7 +258,16 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
     setBusy(true);
     try {
       await s.repo.importPurchaseItems(hid, purchase.id, parsed);
-      onDone();
+      let msg = 'Itens importados';
+      if (toPantry) {
+        try {
+          const r = await pantryFor(s.repo).addPurchaseToPantry(hid, purchase.id);
+          msg = `Itens importados · ${r.movements} produto(s) na despensa${r.ignored ? ` · ${r.ignored} item(ns) ignorado(s): unidade diferente do produto ou dados inválidos` : ''}`;
+        } catch (e) {
+          msg = `Itens importados, mas não entraram na despensa: ${(e as Error).message}`;
+        }
+      }
+      onDone(msg);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -305,6 +337,9 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
               <span>{formatBRL(parsed.payment.amountCents)}</span>
             </div>
           )}
+          <label className="import-check">
+            <input type="checkbox" checked={toPantry} onChange={(e) => setToPantry(e.target.checked)} /> Adicionar à despensa
+          </label>
           <button className="btn btn-primary" type="button" disabled={busy || (parsed.number === undefined && !unverified)} onClick={confirmImport}>
             {parsed.consistent ? 'Confirmar importação' : 'Confirmar importação mesmo assim'}
           </button>

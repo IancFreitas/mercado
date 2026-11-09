@@ -111,6 +111,8 @@ export interface Product extends BaseRecord {
   /** Grupo de equivalência (ex.: "leite integral") para substitutos. */
   equivalenceGroup?: string;
   predictionEnabled: boolean;
+  /** Unidade em que o estoque é contado (definida ao criar a partir da nota). */
+  unit?: Unit;
 }
 
 export interface ProductAlias extends BaseRecord {

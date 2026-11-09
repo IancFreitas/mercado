@@ -31,7 +31,7 @@ export async function purchaseItemIdFor(householdId: string, purchaseId: string,
   return uuidFromSeed(`purchaseItem|${householdId}|${purchaseId}|${index}`);
 }
 
-async function uuidFromSeed(seed: string): Promise<string> {
+export async function uuidFromSeed(seed: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed));
   const h = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
@@ -51,9 +51,9 @@ export interface NewItemInput {
 export class PantryRepo {
   constructor(
     readonly engine: SyncEngine,
-    private readonly actorName: () => string,
-    private readonly nowIso: () => string = () => new Date().toISOString(),
-    private readonly uuid: () => string = () => crypto.randomUUID(),
+    readonly actorName: () => string,
+    readonly nowIso: () => string = () => new Date().toISOString(),
+    readonly uuid: () => string = () => crypto.randomUUID(),
   ) {}
 
   get db() {

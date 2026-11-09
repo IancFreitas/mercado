@@ -1,6 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../app/AppContext';
-import { Section, formatQty } from './components';
+import { formatCnpj } from '../nfce/accessKey';
+import { pantryFor, splitStock, type StockRow } from '../pantry/pantry';
+import { TIMEZONE, currentMonthKey, monthLabel, spendingPurchases, summarizeMonth } from '../spending/spending';
+import { Section, formatBRL, formatQty } from './components';
 import { useDefaultList } from './ListScreen';
 import { navigate } from './router';
 
@@ -14,6 +17,12 @@ export function HomeScreen() {
     [list?.id, hid],
     [],
   );
+  const stockRows = useLiveQuery(() => pantryFor(s.repo).stockRows(hid), [hid], [] as StockRow[]);
+  const stock = splitStock(stockRows);
+  const purchases = useLiveQuery(() => s.repo.listPurchases(hid), [hid], []);
+  const month = currentMonthKey();
+  const monthTotal = summarizeMonth(spendingPurchases(hid, purchases), month).totalCents;
+  const recent = purchases.slice(0, 3);
   const high = pending.filter((i) => i.priority === 'alta');
 
   return (
@@ -52,24 +61,47 @@ export function HomeScreen() {
         </div>
       </Section>
 
-      <Section
-        title="Em breve"
-        footer="Estas áreas dependem da importação de notas fiscais (Fase 2) e da inteligência estatística (Fase 3). Nenhum dado fictício é exibido."
-      >
-        <div className="row muted">Produtos próximos da reposição</div>
-        <div className="row muted">Resumo da despensa</div>
-        <div className="row muted">Últimas compras e gastos recentes</div>
+      <Section title="Despensa">
+        <button className="row-link" onClick={() => navigate('despensa')}>
+          <span className="grow">
+            <strong data-testid="home-pantry-count">{stock.inStock.length}</strong> produto(s) em estoque
+            {stock.out.length > 0 && <span className="tag tag-red">{stock.out.length} acabou</span>}
+          </span>
+          <span className="chev" aria-hidden>
+            ›
+          </span>
+        </button>
       </Section>
-    </div>
-  );
-}
 
-export function PantryScreen() {
-  return (
-    <div className="screen">
-      <h1 className="large-title">Despensa</h1>
-      <Section footer="A despensa virtual será preenchida automaticamente pela importação de NFC-e (Fase 2). O modelo de dados (estoque, movimentações auditáveis, validade e confiança) já está criado no banco local.">
-        <div className="row muted">Em desenvolvimento — Fase 2</div>
+      <Section title="Gastos do mês">
+        <button className="row-link" onClick={() => navigate('gastos')}>
+          <span className="grow">
+            <strong data-testid="home-spend">{formatBRL(monthTotal)}</strong> em {monthLabel(month)}
+          </span>
+          <span className="chev" aria-hidden>
+            ›
+          </span>
+        </button>
+      </Section>
+
+      <Section title="Últimas compras">
+        {recent.length === 0 && <div className="row muted">Nenhuma compra registrada.</div>}
+        {recent.map((p) => (
+          <div className="row" key={p.id} data-testid="home-recent">
+            <span className="grow">
+              {p.issuerCnpj ? formatCnpj(p.issuerCnpj) : 'Compra'}
+              <span className="item-meta" style={{ display: 'block' }}>
+                {new Date(p.purchasedAt).toLocaleDateString('pt-BR', { timeZone: TIMEZONE })}
+                {p.status === 'pendente' ? ' · itens pendentes' : ''}
+              </span>
+            </span>
+            {p.totalCents > 0 && <strong>{formatBRL(p.totalCents)}</strong>}
+          </div>
+        ))}
+      </Section>
+
+      <Section footer="A previsão de reposição depende do histórico de compras (Fase 3). Nenhum dado fictício é exibido.">
+        <div className="row muted">Produtos próximos da reposição — em breve (Fase 3)</div>
       </Section>
     </div>
   );
