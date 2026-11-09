@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type Tab = 'inicio' | 'lista' | 'despensa' | 'casa' | 'notas';
+export type Tab = 'inicio' | 'lista' | 'despensa' | 'casa' | 'notas' | 'gastos';
 export interface Route {
   tab: Tab;
   params: URLSearchParams;
@@ -8,7 +8,7 @@ export interface Route {
   seq: number;
 }
 
-const TABS: Tab[] = ['inicio', 'lista', 'despensa', 'casa', 'notas'];
+const TABS: Tab[] = ['inicio', 'lista', 'despensa', 'casa', 'notas', 'gastos'];
 
 export function parseHash(hash: string): Route {
   const h = hash.replace(/^#\/?/, '');

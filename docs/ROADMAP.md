@@ -32,7 +32,8 @@ Legenda: ✅ concluído · 🟡 em andamento · ⬜ não iniciado · 🔒 depend
 4. Fallback manual de compra; OCR local (Tesseract.js) com campos de baixa confiança.
 5. Dicionário de normalização (marcas, unidades, abreviações: "SAB OMO LQD 3L") + aliases aprendidos.
 6. Importação transacional: compra → preços → estoque → lista; bloqueio de duplicidade por chave.
-7. Despensa: movimentações (consumo, ajuste, esgotado, descarte, "ainda tem").
+7. ✅ Despensa: estoque = soma de movimentações append-only (compra idempotente da nota, consumo, ajuste, esgotado, descarte, "ainda tem"); tela com "Usei 1/Acabou/Ainda tem", histórico e "Pôr na lista". Produto com id determinístico (Casa + descrição normalizada).
+8. ✅ Gastos (`#/gastos`): por mês (fuso São Paulo, comparação % só com os dois meses > 0), loja e categoria; cartões na tela Início.
 
 ## Fase 3 — Inteligência estatística ⬜
 Histórico de preços (min/máx/média/mediana/variação), normalização R$/kg-l-un,

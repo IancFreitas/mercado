@@ -25,6 +25,10 @@
 - ⬜ Próximo: importar itens e preços (colar/compartilhar o conteúdo da página da SEFAZ → parser local;
   depois OCR da foto do cupom).
 - Testes: +25 unitários (`nfce-qr.test.ts`) e +3 E2E (`nfce.spec.ts`).
+- ✅ Despensa e Gastos (2026-11-09): `src/pantry/pantry.ts` (PantryService; estoque = soma de `inventoryMovements`, nunca campo editável;
+  'compra' e produto da nota com id determinístico → sem duplicar entre aparelhos), `PantryScreen`, `SpendingScreen` (`#/gastos`, lazy),
+  cartões reais no Início. Testes: `pantry.test.ts`, `spending.test.ts`, `pantry.spec.ts`. Sem mudança de esquema Dexie, sync ou Supabase
+  (só o campo opcional `Product.unit`). Pendente: validação em iPhone real; categorias automáticas (hoje 'Outros' até o usuário editar).
 
 ## Em andamento / bloqueado
 | Item | Bloqueio |

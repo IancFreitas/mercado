@@ -112,7 +112,7 @@ Depois de registrada, a nota fica com "itens pendentes". Para importar os produt
     Se Ian e Fernanda importarem o mesmo texto, os itens não duplicam.
 
 Limitações conhecidas: preços unitários com mais de 2 casas (ex.: combustível 4,599) são arredondados para centavos (o total da nota vale); descontos aplicados por item fora do bloco de totais só geram aviso; apenas a primeira forma de pagamento é lida. Se o texto não trouxer número e série, o app pede uma confirmação extra. Se o texto for de outra nota, o app recusa. Os itens importados alimentam os preços da lista
-(veja "Preços na lista" abaixo); o reconhecimento completo dos produtos é o próximo passo.
+(veja "Preços na lista" abaixo); os produtos também podem ir para a Despensa (veja abaixo).
 
 ## Preços na lista
 
@@ -130,7 +130,33 @@ Limitações: embalagens diferentes (ex.: 900 ml e 3 L) ainda não são comparad
 só consideram compras na mesma unidade da última. Associações podem errar quando o nome é genérico
 (ex.: "Fita" também encontra fita isolante; "Leite" pode encontrar leite condensado ou creme de leite; "Pão", "Tomate" e "Sal" também): confira o produto mostrado na linha e use um nome mais específico. Abreviações muito cortadas (ex.: "QJO" para queijo) não são reconhecidas.
 
+## Despensa
+
+A aba **Despensa** mostra o que há em casa, por categoria, com a quantidade e a data da última compra.
+
+- **Como entra:** ao importar os itens de uma nota, deixe marcado **Adicionar à despensa** (já vem marcado). Para uma nota
+  importada antes, use **Adicionar à despensa** na linha da nota (em **Notas**); repetir o toque ou fazer nos dois celulares
+  não duplica nada. Também dá para **Adicionar produto** à mão (nome, quantidade, unidade, categoria).
+- **Nome e categoria:** o nome vem da descrição da nota em letras de título (ex.: "Arroz Tipo 1 5KG") e a categoria começa
+  em "Outros". Toque em **Editar** para mudar nome, categoria ou a quantidade.
+- **Usei 1** diminui 1 do estoque. **Acabou** zera. **Ainda tem** só anota que você conferiu (não muda a quantidade).
+  Em **Editar**, mudar a quantidade registra um *ajuste*, e **Descartar 1** registra um descarte.
+- **Acabou:** produtos sem estoque vão para a seção "Acabou", com **Pôr na lista** (não duplica se já estiver na lista).
+- **Histórico:** toque no nome do produto para ver todas as movimentações (compra, consumo, ajuste...) com data e quem fez.
+- A quantidade é sempre a **soma das movimentações**, então se vocês dois registrarem "Usei 1" ao mesmo tempo (até offline),
+  as duas baixas valem. Quantidades fracionadas (kg) usam até 3 casas.
+- Limitações: se uma nota for removida depois, o estoque que ela gerou continua (ajuste na mão); itens de uma nota cuja unidade
+  difere da do produto (ex.: kg × un) não são somados e a mensagem avisa; nota sem itens importados não entra na despensa.
+
+## Gastos
+
+**Início › Gastos do mês** (ou `#/gastos`) mostra, para o mês escolhido (padrão: o atual, no horário de São Paulo):
+o total gasto, a comparação com o mês anterior (só quando os dois meses têm gastos), o total por **loja** (CNPJ),
+por **categoria** e a lista das compras. Entram as compras da Casa não removidas com valor maior que zero (notas importadas
+usam o *valor a pagar*; notas escaneadas offline, o valor do QR). Na divisão por categoria somam-se os **itens**, pela categoria
+do produto na Despensa; itens sem produto ficam em "Sem categoria", e descontos/acréscimos da nota não entram nessa divisão,
+por isso a soma das categorias pode diferir do total do mês.
+
 ## Ainda não disponível
 
-Reconhecimento dos produtos da nota, despensa, histórico de preços, previsões e modo compras
-são as próximas fases. O app mostra essas áreas como "em breve".
+Previsões de reposição, histórico de preços completo e modo compras são as próximas fases. O app mostra essas áreas como "em breve".
