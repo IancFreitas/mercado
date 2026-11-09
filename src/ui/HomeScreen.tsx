@@ -4,7 +4,9 @@ import { formatCnpj } from '../nfce/accessKey';
 import { pantryFor, splitStock, type StockRow } from '../pantry/pantry';
 import { TIMEZONE, currentMonthKey, monthLabel, spendingPurchases, summarizeMonth } from '../spending/spending';
 import { Section, formatBRL, formatQty } from './components';
-import { useDefaultList } from './ListScreen';
+import { CONFIDENCE_LABEL } from '../predict/consumption';
+import { timingLabel } from '../predict/suggestions';
+import { useDefaultList, useSuggestions } from './ListScreen';
 import { navigate } from './router';
 
 export function HomeScreen() {
@@ -23,6 +25,7 @@ export function HomeScreen() {
   const month = currentMonthKey();
   const monthTotal = summarizeMonth(spendingPurchases(hid, purchases), month).totalCents;
   const recent = purchases.slice(0, 3);
+  const suggestions = useSuggestions();
   const high = pending.filter((i) => i.priority === 'alta');
 
   return (
@@ -100,8 +103,32 @@ export function HomeScreen() {
         ))}
       </Section>
 
-      <Section footer="A previsão de reposição depende do histórico de compras (Fase 3). Nenhum dado fictício é exibido.">
-        <div className="row muted">Produtos próximos da reposição — em breve (Fase 3)</div>
+      <Section
+        title="Próximos da reposição"
+        footer="Previsão calculada no seu aparelho a partir do histórico de compras. Poucos dados = sem previsão."
+      >
+        {suggestions.length === 0 ? (
+          <div className="row muted" data-testid="home-suggestions-empty">
+            Nenhum produto próximo da reposição agora.
+          </div>
+        ) : (
+          <>
+            {suggestions.slice(0, 5).map(({ product: p, forecast: f }) => (
+              <button className="row-link" key={p.id} onClick={() => navigate('lista')} data-testid="home-suggestion">
+                <span className="grow">
+                  {p.name}
+                  <span className="item-meta" style={{ display: 'block' }}>
+                    {timingLabel(f)} · Confiança {CONFIDENCE_LABEL[f.confidence]}
+                  </span>
+                </span>
+                <span className="chev" aria-hidden>
+                  ›
+                </span>
+              </button>
+            ))}
+            {suggestions.length > 5 && <div className="row muted">+ {suggestions.length - 5} na lista de sugestões</div>}
+          </>
+        )}
       </Section>
     </div>
   );

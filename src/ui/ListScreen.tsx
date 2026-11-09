@@ -5,6 +5,8 @@ import { findDuplicates } from '../db/repo';
 import { CATEGORIES, type Category, type ShoppingListItem, type Unit } from '../domain/types';
 import { formatQty, formatBRL } from './components';
 import { formatCnpj } from '../nfce/accessKey';
+import { CONFIDENCE_LABEL } from '../predict/consumption';
+import { addSuggestion, loadSuggestions, setPredictionEnabled, snoozeSuggestion, timingLabel, type Suggestion } from '../predict/suggestions';
 import { prepareEntries, priceStatsPrepared, type PriceEntry, type PriceStats } from '../prices/priceMatch';
 
 const UNITS: Unit[] = ['un', 'kg', 'g', 'l', 'ml', 'pct', 'cx', 'dz'];
@@ -16,6 +18,18 @@ export function useDefaultList() {
     () => (session.householdId ? s.repo.getDefaultList(session.householdId) : undefined),
     [session.householdId],
   );
+}
+
+export function useSuggestions(): Suggestion[] {
+  const { s, session } = useApp();
+  const hid = session.householdId!;
+  // Relógio de 1 h: adiamento que vence e "acaba em N dias" se atualizam com o app aberto.
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTick(Date.now()), 3_600_000);
+    return () => clearInterval(id);
+  }, []);
+  return useLiveQuery(() => loadSuggestions(s.repo, hid, tick), [hid, tick], [] as Suggestion[]);
 }
 
 export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty: number; key: string } | null }) {
@@ -32,6 +46,7 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
     [hid],
     [],
   );
+  const suggestions = useSuggestions();
   const entries = useLiveQuery(() => s.repo.priceEntries(hid), [hid], [] as PriceEntry[]);
   const [name, setName] = useState('');
   const [qty, setQty] = useState('1');
@@ -161,7 +176,9 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
         </div>
       ))}
 
-      {pending.length === 0 && inCart.length === 0 && <p className="empty">Lista vazia. Adicione o que está faltando em casa.</p>}
+      <SuggestionsSection suggestions={suggestions} />
+
+      {pending.length === 0 && inCart.length === 0 && suggestions.length === 0 && <p className="empty">Lista vazia. Adicione o que está faltando em casa.</p>}
 
       {groups.map(([cat, its]) => (
         <section className="section" key={cat}>
@@ -311,5 +328,92 @@ function ItemRow({ item, stats, editing, onEdit }: { item: ShoppingListItem; sta
         </div>
       )}
     </li>
+  );
+}
+
+function SuggestionsSection({ suggestions }: { suggestions: Suggestion[] }) {
+  const { s, session, toast } = useApp();
+  const hid = session.householdId!;
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem('sugestoes-recolhidas') !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const [why, setWhy] = useState<string | null>(null);
+  if (suggestions.length === 0) return null;
+
+  function toggle() {
+    setOpen((o) => {
+      try {
+        localStorage.setItem('sugestoes-recolhidas', o ? '1' : '0');
+      } catch {
+        /* sem armazenamento: só não lembra */
+      }
+      return !o;
+    });
+  }
+  async function run(fn: () => Promise<string>) {
+    try {
+      toast(await fn());
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
+  return (
+    <section className="section" data-testid="suggestions">
+      <h2 className="section-title">
+        <button className="link" onClick={toggle} aria-expanded={open}>
+          Sugestões ({suggestions.length}) {open ? '▾' : '▸'}
+        </button>
+      </h2>
+      {open && (
+        <ul className="card list">
+          {suggestions.map(({ product: p, forecast: f, quantity, unit }) => (
+            <li className="row sugg-row" key={p.id} data-testid="suggestion-row">
+              <div className="row-main">
+                <span className="item-name">{p.name}</span>
+                <span className="item-meta">
+                  {formatQty(quantity, unit)} · {timingLabel(f)} · Confiança {CONFIDENCE_LABEL[f.confidence]}
+                </span>
+                <button className="link" aria-expanded={why === p.id} onClick={() => setWhy(why === p.id ? null : p.id)}>
+                  Por que sugeriu?
+                </button>
+                {why === p.id && (
+                  <p className="item-meta sugg-why" data-testid="suggestion-why">
+                    {f.explanation}
+                  </p>
+                )}
+              </div>
+              <div className="pantry-actions">
+                <button
+                  className="btn btn-plain small"
+                  aria-label={`Adicionar ${p.name} à lista`}
+                  onClick={() => run(async () => ((await addSuggestion(s.repo, hid, p.id, quantity)).added ? `${p.name} adicionado` : 'Já está na lista'))}
+                >
+                  Adicionar
+                </button>
+                <button
+                  className="btn btn-plain small"
+                  aria-label={`Adiar sugestão de ${p.name} por 7 dias`}
+                  onClick={() => run(async () => (await snoozeSuggestion(s.repo, hid, p.id), 'Adiado por 7 dias'))}
+                >
+                  Adiar
+                </button>
+                <button
+                  className="btn btn-plain small"
+                  aria-label={`Não sugerir mais ${p.name}`}
+                  onClick={() => run(async () => (await setPredictionEnabled(s.repo, hid, p.id, false), 'Não vou mais sugerir (reative na Despensa)'))}
+                >
+                  Não sugerir
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

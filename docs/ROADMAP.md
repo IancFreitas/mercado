@@ -35,7 +35,11 @@ Legenda: ✅ concluído · 🟡 em andamento · ⬜ não iniciado · 🔒 depend
 7. ✅ Despensa: estoque = soma de movimentações append-only (compra idempotente da nota, consumo, ajuste, esgotado, descarte, "ainda tem"); tela com "Usei 1/Acabou/Ainda tem", histórico e "Pôr na lista". Produto com id determinístico (Casa + descrição normalizada).
 8. ✅ Gastos (`#/gastos`): por mês (fuso São Paulo, comparação % só com os dois meses > 0), loja e categoria; cartões na tela Início.
 
-## Fase 3 — Inteligência estatística ⬜
+## Fase 3 — Inteligência estatística 🟡
+1. ✅ Previsão de consumo (`src/predict/consumption.ts`, funções puras): taxa por amostras (observação direta / consumo registrado / assumida), mediana das últimas 6, descarte de compras e períodos atípicos, mudança de padrão, "ainda tem", confiança baixa/média/alta, explicação em português. Fuso America/Sao_Paulo.
+2. ✅ Sugestões de reposição (`src/predict/suggestions.ts`): adicionar (sem duplicar), adiar 7 dias (`Product.snoozedUntil`), "não sugerir mais" (`predictionEnabled`), cartão no Início, seção na Lista, previsão no detalhe da Despensa.
+3. ⬜ Histórico de preços completo, correção manual da taxa, métricas de acerto da previsão.
+
 Histórico de preços (min/máx/média/mediana/variação), normalização R$/kg-l-un,
 gastos por categoria/período/loja, previsão de consumo robusta (mediana de taxas
 entre compras, descarte de outliers, intervalo de confiança simples, correções do

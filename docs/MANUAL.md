@@ -157,6 +157,32 @@ usam o *valor a pagar*; notas escaneadas offline, o valor do QR). Na divisão po
 do produto na Despensa; itens sem produto ficam em "Sem categoria", e descontos/acréscimos da nota não entram nessa divisão,
 por isso a soma das categorias pode diferir do total do mês.
 
+## Sugestões de reposição
+
+O app aprende com o seu histórico de compras (tudo calculado no próprio aparelho) e avisa o que deve estar acabando.
+
+- **Onde aparece:** em **Início › Próximos da reposição** (até 5) e no topo da **Lista** (seção **Sugestões**, que pode ser recolhida).
+- **Como funciona:** para cada produto, o app mede quanto tempo cada compra durou (da compra até você marcar **Acabou**, ou até a
+  compra seguinte) e usa a **mediana** dessas taxas. Exemplo: 12 L a cada 20 dias = 0,6 L/dia → estimativa da data em que acaba.
+  Um produto é sugerido quando o estoque estimado chega a zero ou faltam 7 dias ou menos. A quantidade sugerida é a compra típica.
+- **Por que sugeriu?** Toque em **Por que sugeriu?** para ler a explicação (ex.: "Você compra cerca de 12 L a cada ~20 dias...").
+- **Confiança:** *baixa* (poucas medidas, 1), *média* (2 a 3) ou *alta* (4 ou mais, regulares e com registros seus, como "Usei 1" ou
+  "Acabou"). Sem nenhum registro seu, o app supõe que cada compra foi consumida até a seguinte e a confiança fica no máximo *média*.
+  Com **uma só compra** o app mostra "Poucos dados ainda" e **não** faz previsão.
+- **Atípicos:** uma compra muito maior que o normal (mais de 3×) e períodos muito diferentes dos demais são ignorados e citados na
+  explicação. Se o consumo muda de verdade (as 2 últimas medidas diferem mais de 50%), o app passa a priorizar as recentes.
+- **Corrigir a previsão:** use **Usei 1**, **Acabou** e **Ainda tem** na Despensa. "Ainda tem" depois da data prevista empurra a
+  previsão para frente. Mudar a quantidade em **Editar** também vale como registro.
+- **Ações:** **Adicionar** põe na lista (sem duplicar; se o produto já está na lista, ele some das sugestões); **Adiar** esconde por 7 dias;
+  **Não sugerir** desliga a previsão do produto. Para religar, abra o produto na **Despensa** (toque no nome) e marque **Prever reposição**.
+- **Registros incompletos:** se você registra só alguns "Usei" e recompra com boa parte ainda "em estoque" pelos registros, o app
+  não usa esses "Usei" como consumo: supõe o lote consumido até a recompra e avisa na explicação. Compras muito irregulares
+  ficam com confiança *baixa*.
+- **Na lista:** produto já na lista (mesmo marcado no carrinho) não é sugerido; se a nota do carrinho nunca for importada, ele só volta
+  a ser sugerido depois de **Limpar** o carrinho. Nomes bem diferentes ("Leite Integral 1L" × "Leite") não são reconhecidos como o mesmo item.
+- Limites: a previsão é uma estimativa simples; compras de notas removidas depois continuam no histórico do estoque.
+  Produtos cadastrados à mão sem nenhuma compra de nota não têm previsão.
+
 ## Ainda não disponível
 
-Previsões de reposição, histórico de preços completo e modo compras são as próximas fases. O app mostra essas áreas como "em breve".
+Histórico de preços completo e modo compras são as próximas fases. O app mostra essas áreas como "em breve".
