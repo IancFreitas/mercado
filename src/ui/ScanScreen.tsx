@@ -8,6 +8,8 @@ import { parseSefazText, type ParsedNfce } from '../nfce/parseSefazText';
 import type { Purchase } from '../domain/types';
 import { pantryFor } from '../pantry/pantry';
 import { Section, formatBRL } from './components';
+import { useDefaultList } from './ListScreen';
+import { reconcile } from '../shopping/reconcile';
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -144,6 +146,7 @@ function PurchaseRow({ p }: { p: Purchase }) {
   const { s, session, toast } = useApp();
   const hid = session.householdId!;
   const [open, setOpen] = useState(false);
+  const [recon, setRecon] = useState(false);
   const pending = p.status === 'pendente';
   return (
     <li className="row" data-testid="purchase-row">
@@ -185,6 +188,11 @@ function PurchaseRow({ p }: { p: Purchase }) {
           Adicionar à despensa
         </button>
       )}
+      {!pending && (
+        <button className="link" onClick={() => setRecon((v) => !v)} aria-expanded={recon}>
+          Conferir com a lista
+        </button>
+      )}
       {p.consultUrl && (
         <a className="link" href={p.consultUrl} target="_blank" rel="noopener noreferrer">
           SEFAZ
@@ -199,7 +207,93 @@ function PurchaseRow({ p }: { p: Purchase }) {
       </button>
       {open && pending && <ImportPanel purchase={p} onDone={(msg) => { setOpen(false); toast(msg); }} onCancel={() => setOpen(false)} />}
       {open && !pending && <PurchaseItems purchase={p} />}
+      {recon && !pending && <ReconcilePanel purchase={p} onClose={() => setRecon(false)} />}
     </li>
+  );
+}
+
+function ReconcilePanel({ purchase, onClose }: { purchase: Purchase; onClose: () => void }) {
+  const { s, session, toast } = useApp();
+  const hid = session.householdId!;
+  const list = useDefaultList();
+  const noteItems = useLiveQuery(() => s.repo.listPurchaseItems(hid, purchase.id), [hid, purchase.id], []);
+  const listItems = useLiveQuery(
+    () => (list ? s.repo.listItems(hid, list.id) : Promise.resolve([])),
+    [list?.id, hid],
+    [],
+  );
+  const checked = listItems.filter((i) => i.checked);
+  const r = reconcile(checked, noteItems);
+  // Seleção por linha: pré-marcadas só as correspondências seguras (não frouxas); o usuário confirma.
+  const [off, setOff] = useState<Set<string>>(new Set());
+  const [on, setOn] = useState<Set<string>>(new Set());
+  const isSel = (m: (typeof r.matched)[number]) => (m.loose ? on.has(m.listItem.id) : !off.has(m.listItem.id));
+  const toggle = (m: (typeof r.matched)[number]) => {
+    const id = m.listItem.id;
+    const set = new Set(m.loose ? on : off);
+    set.has(id) ? set.delete(id) : set.add(id);
+    (m.loose ? setOn : setOff)(set);
+  };
+  const selected = r.matched.filter(isSel);
+
+  async function clear() {
+    try {
+      for (const m of selected) await s.repo.removeItem(hid, m.listItem.id);
+      toast(`${selected.length} item(ns) removido(s) da lista. Para desfazer: Lista › removidos recentemente › Restaurar`);
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
+  return (
+    <div className="row-edit import-box" data-testid="reconcile-panel">
+      {checked.length === 0 ? (
+        <span className="muted">Nenhum item marcado no carrinho da lista para conferir.</span>
+      ) : r.matched.length === 0 ? (
+        <span className="muted">Nenhum item marcado da lista aparece nesta nota.</span>
+      ) : (
+        <>
+          <strong>Conferência: {r.matched.length} de {checked.length} marcado(s) estão na nota</strong>
+          {r.matched.map((m) => (
+            <div className="import-line" key={m.listItem.id} data-testid="reconcile-line">
+              <input
+                type="checkbox"
+                checked={isSel(m)}
+                onChange={() => toggle(m)}
+                aria-label={`Remover ${m.listItem.name} da lista`}
+                style={{ width: 24, height: 24 }}
+              />
+              <span className="grow">
+                {m.listItem.name}
+                <span className="item-meta" style={{ display: 'block' }}>{m.noteItem.rawDescription}</span>
+              </span>
+              <span className="recon-line">
+                {m.foundCents !== undefined ? <span className="muted">Encontrado {formatBRL(m.foundCents)}</span> : <span className="muted">Sem preço anotado</span>}
+                <strong>Pago {formatBRL(m.paidCents)}</strong>
+                {m.diffCents !== undefined && m.diffCents !== 0 && (
+                  <span className={m.diffCents > 0 ? 'cmp cmp-acima' : 'cmp cmp-abaixo'}>
+                    {m.diffCents > 0 ? '▲ pagou ' : '▼ pagou '}
+                    {formatBRL(Math.abs(m.diffCents))}
+                    {m.diffCents > 0 ? ' a mais' : ' a menos'}
+                  </span>
+                )}
+                {m.diffCents === 0 && <span className="cmp cmp-media">● igual ao anotado</span>}
+                {m.loose && <span className="cmp cmp-sem">Confira se é o mesmo produto</span>}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+      {r.unmatchedList.length > 0 && r.matched.length > 0 && (
+        <span className="muted">Marcados que não vieram na nota: {r.unmatchedList.map((i) => i.name).join(', ')}.</span>
+      )}
+      <div className="import-actions">
+        <button className="btn btn-primary" type="button" disabled={selected.length === 0} onClick={clear}>
+          Limpar comprados ({selected.length})
+        </button>
+        <button className="btn btn-plain" type="button" onClick={onClose}>Fechar</button>
+      </div>
+    </div>
   );
 }
 

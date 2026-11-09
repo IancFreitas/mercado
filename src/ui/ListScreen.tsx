@@ -5,6 +5,8 @@ import { findDuplicates } from '../db/repo';
 import { CATEGORIES, type Category, type ShoppingListItem, type Unit } from '../domain/types';
 import { formatQty, formatBRL } from './components';
 import { formatCnpj } from '../nfce/accessKey';
+import { baseUnitLabel } from '../prices/packageSize';
+import { navigate } from './router';
 import { CONFIDENCE_LABEL } from '../predict/consumption';
 import { addSuggestion, loadSuggestions, setPredictionEnabled, snoozeSuggestion, timingLabel, type Suggestion } from '../predict/suggestions';
 import { prepareEntries, priceStatsPrepared, type PriceEntry, type PriceStats } from '../prices/priceMatch';
@@ -149,6 +151,12 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
         )}
       </form>
 
+      {pending.length + inCart.length > 0 && (
+        <button type="button" className="btn btn-plain" onClick={() => navigate('compras')}>
+          🛒 Modo compras
+        </button>
+      )}
+
       {linkAdd && (
         <div className="banner" role="alertdialog" aria-label="Confirmar item do atalho" data-testid="deeplink-confirm">
           Adicionar <strong>{linkAdd.name}</strong> ({formatQty(linkAdd.qty, 'un')}) à lista?{' '}
@@ -245,6 +253,7 @@ function priceLine(st: PriceStats): string {
   const u = st.last.unit === 'un' ? '' : `/${st.last.unit}`;
   const parts = [`Último ${formatBRL(st.last.unitPriceCents)}${u}`, fmtDay(st.last.purchasedAt)];
   if (st.count >= 2) parts.push(`médio ${formatBRL(st.avgUnitCents)}${u}`);
+  if (st.normalizedLast) parts.push(`${formatBRL(st.normalizedLast.cents)}/${baseUnitLabel(st.normalizedLast.unit)}`);
   parts.push(st.last.rawDescription);
   return parts.join(' · ');
 }
