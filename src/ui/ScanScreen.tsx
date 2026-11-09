@@ -10,6 +10,9 @@ import { pantryFor } from '../pantry/pantry';
 import { Section, formatBRL } from './components';
 import { useDefaultList } from './ListScreen';
 import { reconcile } from '../shopping/reconcile';
+import { evaluateShortcutLink, storeLabel, type ShortcutLink } from '../stores/stores';
+import { useStoreNames } from '../stores/useStoreNames';
+import { useRoute } from './router';
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -22,6 +25,45 @@ export function ScanScreen() {
   const [manual, setManual] = useState('');
   const [busy, setBusy] = useState(false);
   const purchases = useLiveQuery(() => s.repo.listPurchases(hid), [hid], []);
+  const names = useStoreNames();
+  const route = useRoute();
+  // Deep link do Atalho (#/notas?qr=…&colar=1): só pede confirmação; nada é gravado sem toque.
+  const [link, setLink] = useState<Extract<ShortcutLink, { kind: 'confirm' }> | null>(null);
+  const [openId, setOpenId] = useState<{ id: string; paste: boolean } | null>(null);
+  const linkKey = route.params.get('qr') ? `${route.seq}|${route.params.get('qr')}` : '';
+  useEffect(() => {
+    if (!linkKey) return;
+    const ev = evaluateShortcutLink(route.params);
+    history.replaceState(null, '', '#/notas'); // não reprocessar ao recarregar
+    if (ev.kind === 'confirm') {
+      setLink(ev);
+      setError(null);
+      setResult(null);
+    } else if (ev.kind === 'invalid') {
+      setLink(null);
+      setError(ev.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkKey]);
+
+  async function confirmLink() {
+    if (!link) return;
+    setBusy(true);
+    try {
+      const r = await s.repo.savePurchaseFromQr(hid, link.qr);
+      setLink(null);
+      if (r.purchase.status === 'pendente') {
+        toast(r.existing ? 'Esta nota já estava registrada' : 'Nota registrada');
+        setOpenId({ id: r.purchase.id, paste: link.paste });
+      } else {
+        toast('Esta nota já foi registrada e importada');
+      }
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const duplicate = useLiveQuery(
     async () => (result ? !!(await s.repo.findPurchaseByKey(hid, result.info.key)) : false),
     [result?.info.key, hid],
@@ -58,7 +100,23 @@ export function ScanScreen() {
     <div className="screen">
       <h1 className="large-title">Notas fiscais</h1>
 
-      {!result && (
+      {link && (
+        <Section title="Atalho do iPhone">
+          <div data-testid="shortcut-confirm">
+            <div className="row">
+              <span className="grow">
+                Registrar nota de <strong>{storeLabel(link.qr.info.issuerId, names)}</strong> ({MONTHS[link.qr.info.month - 1]}/{link.qr.info.year})?
+              </span>
+            </div>
+            <div className="import-actions" style={{ padding: '0 16px 12px' }}>
+              <button className="btn btn-primary" type="button" disabled={busy} onClick={confirmLink}>Registrar nota</button>
+              <button className="btn btn-plain" type="button" onClick={() => setLink(null)}>Cancelar</button>
+            </div>
+          </div>
+        </Section>
+      )}
+
+      {!result && !link && (
         <Section footer="A leitura é feita no próprio aparelho; nenhuma imagem é enviada a servidores.">
           {camera ? (
             <CameraScanner onText={handleText} onError={(m) => { setError(m); setCamera(false); }} />
@@ -129,7 +187,7 @@ export function ScanScreen() {
           <h2 className="section-title">Notas registradas ({purchases.length})</h2>
           <ul className="card list" data-testid="purchase-list">
             {purchases.map((p) => (
-              <PurchaseRow key={p.id} p={p} />
+              <PurchaseRow key={p.id} p={p} names={names} autoOpen={openId?.id === p.id ? openId : null} />
             ))}
           </ul>
         </section>
@@ -142,17 +200,33 @@ export function ScanScreen() {
   );
 }
 
-function PurchaseRow({ p }: { p: Purchase }) {
+function PurchaseRow({ p, names, autoOpen }: { p: Purchase; names: Map<string, string>; autoOpen: { id: string; paste: boolean } | null }) {
   const { s, session, toast } = useApp();
   const hid = session.householdId!;
   const [open, setOpen] = useState(false);
   const [recon, setRecon] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [storeText, setStoreText] = useState('');
   const pending = p.status === 'pendente';
+  useEffect(() => {
+    if (autoOpen && pending) setOpen(true);
+  }, [autoOpen, pending]);
+  async function saveStoreName() {
+    if (!p.issuerCnpj) return;
+    try {
+      await s.repo.setStoreName(hid, p.issuerCnpj, storeText);
+      setNaming(false);
+      toast('Nome da loja salvo');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
   return (
     <li className="row" data-testid="purchase-row">
       <span className="grow">
-        <span className="item-name">{p.issuerCnpj ? formatCnpj(p.issuerCnpj) : 'Compra'}</span>
+        <span className="item-name">{storeLabel(p.issuerCnpj, names)}</span>
         <span className="item-meta" style={{ display: 'block' }}>
+          {p.issuerCnpj && names.has(p.issuerCnpj) ? `${formatCnpj(p.issuerCnpj)} · ` : ''}
           {new Date(p.purchasedAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })}
           {p.totalCents ? ` · ${formatBRL(p.totalCents)}` : ''} · {pending ? 'itens pendentes' : 'importada'}
           {p.paymentMethod ? ` · ${p.paymentMethod}` : ''}
@@ -193,6 +267,15 @@ function PurchaseRow({ p }: { p: Purchase }) {
           Conferir com a lista
         </button>
       )}
+      {p.issuerCnpj && (
+        <button
+          className="link"
+          onClick={() => { setStoreText(names.get(p.issuerCnpj!) ?? ''); setNaming((v) => !v); }}
+          aria-expanded={naming}
+        >
+          Nome da loja
+        </button>
+      )}
       {p.consultUrl && (
         <a className="link" href={p.consultUrl} target="_blank" rel="noopener noreferrer">
           SEFAZ
@@ -205,7 +288,19 @@ function PurchaseRow({ p }: { p: Purchase }) {
       >
         Remover
       </button>
-      {open && pending && <ImportPanel purchase={p} onDone={(msg) => { setOpen(false); toast(msg); }} onCancel={() => setOpen(false)} />}
+      {naming && (
+        <form className="row-edit import-box" onSubmit={(e: FormEvent) => { e.preventDefault(); void saveStoreName(); }}>
+          <label className="field">
+            <span>Nome da loja (vale para todas as notas do CNPJ {formatCnpj(p.issuerCnpj!)})</span>
+            <input className="input" value={storeText} maxLength={60} onChange={(e) => setStoreText(e.target.value)} aria-label="Nome da loja" placeholder="Ex.: Mercado do bairro" />
+          </label>
+          <div className="import-actions">
+            <button className="btn btn-primary" type="submit" disabled={!storeText.trim()}>Salvar nome</button>
+            <button className="btn btn-plain" type="button" onClick={() => setNaming(false)}>Cancelar</button>
+          </div>
+        </form>
+      )}
+      {open && pending && <ImportPanel purchase={p} highlightPaste={!!autoOpen?.paste} onDone={(msg) => { setOpen(false); toast(msg); }} onCancel={() => setOpen(false)} />}
       {open && !pending && <PurchaseItems purchase={p} />}
       {recon && !pending && <ReconcilePanel purchase={p} onClose={() => setRecon(false)} />}
     </li>
@@ -317,7 +412,7 @@ function PurchaseItems({ purchase }: { purchase: Purchase }) {
   );
 }
 
-function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDone: (msg: string) => void; onCancel: () => void }) {
+function ImportPanel({ purchase, highlightPaste, onDone, onCancel }: { purchase: Purchase; highlightPaste?: boolean; onDone: (msg: string) => void; onCancel: () => void }) {
   const { s, session } = useApp();
   const hid = session.householdId!;
   const [text, setText] = useState('');
@@ -372,6 +467,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
   return (
     <div className="row-edit import-box" data-testid="import-panel">
       <p className="muted import-help">
+        {highlightPaste && <strong>Toque em Colar (o Atalho já copiou o texto da nota). </strong>}
         Abra a nota na SEFAZ, toque e segure em qualquer texto › Selecionar Tudo › Copiar. Volte aqui e cole.
         O app lê só os produtos e totais e ignora tudo a partir de "Chave de acesso" (seus dados pessoais não são lidos nem salvos).
       </p>
@@ -384,7 +480,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
         placeholder="Cole aqui o texto copiado da página da SEFAZ"
       />
       <div className="import-actions">
-        <button className="btn btn-plain" type="button" onClick={paste}>Colar</button>
+        <button className={`btn ${highlightPaste ? 'btn-primary paste-hl' : 'btn-plain'}`} type="button" onClick={paste} data-testid="paste-btn">Colar</button>
         <button className="btn btn-primary" type="button" onClick={read} disabled={!text.trim()}>Ler texto</button>
         <button className="btn btn-plain" type="button" onClick={onCancel}>Cancelar</button>
       </div>

@@ -47,8 +47,7 @@ usuário), sugestões com explicação, lista inteligente.
 
 ## Fase 4 — Experiência avançada ⬜
 ✅ Preço normalizado por kg/L (`src/prices/packageSize.ts`) e Modo compras (`#/compras`: preço encontrado × histórico,
-total estimado, reconciliação com NFC-e em Notas; `src/shopping/`).
-⬜ Apagar "preço encontrado" (hoje só sobrescreve: `updateItem` ignora undefined; exige remoção de campo no engine/sync).
+total estimado, reconciliação com NFC-e em Notas; `src/shopping/`). ✅ Apagar preço encontrado (grava null), nome da loja por CNPJ (`src/stores/`) e Atalho de importação de nota (`#/notas?qr=…&colar=1`; ver MANUAL, não testado em iPhone).
 ⬜ Web Push (iOS 16.4+, só instalado), Atalhos/Siri (deep links ✅ já
 existe `#/lista?add=`; consultas exigem Edge Function + token de atalho),
 desempenho, guia de instalação para amigos.
