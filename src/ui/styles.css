@@ -208,6 +208,7 @@ a.btn { text-decoration: none; text-align: center; }
 .shop-input { max-width: 180px; }
 .cmp { font-size: 15px; font-weight: 600; }
 .cmp-acima { color: var(--red); }
-.cmp-abaixo { color: var(--green, #1a7f37); }
+.cmp-abaixo { color: #1a7f37; }
+@media (prefers-color-scheme: dark) { .cmp-abaixo { color: var(--accent); } }
 .cmp-media, .cmp-sem { color: var(--muted); }
 .recon-line { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }

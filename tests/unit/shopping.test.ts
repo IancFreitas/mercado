@@ -94,3 +94,49 @@ describe('reconcile', () => {
     expect(r.unmatchedList.map((i) => i.id)).toEqual(['x']);
   });
 });
+
+describe('réplica do Sênior', () => {
+  it('reconcile: "Leite" casa o leite de verdade, não o creme de leite', () => {
+    const r = reconcile(
+      [{ id: 'l', name: 'Leite', foundPriceCents: 500 }],
+      [
+        { id: 'c', rawDescription: 'CREME DE LEITE 200G', unitPriceCents: 450, quantity: 1 },
+        { id: 'u', rawDescription: 'LEITE UHT INTEG 1L', unitPriceCents: 520, quantity: 1 },
+      ],
+    );
+    expect(r.matched[0]!.noteItem.id).toBe('u');
+    expect(r.matched[0]!.loose).toBe(true); // havia 2 candidatos: precisa de confirmação
+    expect(r.unmatchedNote.map((n) => n.id)).toEqual(['c']);
+  });
+  it('reconcile: único candidato que não começa pela palavra da lista é frouxo; exato não', () => {
+    const only = reconcile([{ id: 'l', name: 'Leite' }], [{ id: 'c', rawDescription: 'CREME DE LEITE 200G', unitPriceCents: 450, quantity: 1 }]);
+    expect(only.matched[0]!.loose).toBe(true);
+    const ok = reconcile([{ id: 'l', name: 'Fita crepe' }], [{ id: 'f', rawDescription: 'FITA CREPE BRANCA 48MMx50M', unitPriceCents: 1290, quantity: 1 }]);
+    expect(ok.matched[0]!.loose).toBe(false);
+  });
+  it('total: "Sabão 3L" com último pago de 500ML usa R$/L, não o unitário', () => {
+    const st = priceStatsFor('Sabão líquido 3L', [e('SAB LQD 3L OMO', 3200)])!; // sanity
+    expect(st).toBeTruthy();
+    const st2 = priceStatsFor('Sabão líquido', [e('SAB LQD OMO 500ML', 800)]);
+    const t = estimateTotal([{ name: 'Sabão líquido 3L', quantity: 1, checked: false, unit: 'un' }], () => st2);
+    // 800/0,5L = 16,00/L x 3L = 48,00 (nunca R$ 8,00)
+    expect(t.totalCents).toBe(4800);
+  });
+  it('total: sem tamanho no nome e histórico misto -> sem preço', () => {
+    const st = priceStatsFor('Sabão líquido', [e('SAB LQD OMO 3L', 3290), e('SAB LQD OMO 500ML', 800, { purchasedAt: '2026-08-01T12:00:00Z', purchaseId: 'p0' })]);
+    const t = estimateTotal([{ name: 'Sabão líquido', quantity: 1, checked: false, unit: 'un' }], () => st);
+    expect(t.totalCents).toBe(0);
+    expect(t.withoutPrice).toBe(1);
+  });
+  it('comparação por unidade com tamanhos mistos -> sem comparação com dica', () => {
+    const st = priceStatsFor('Sabão líquido', [e('SAB LQD OMO 3L', 3290), e('SAB LQD OMO 1L', 1200, { purchasedAt: '2026-08-01T12:00:00Z', purchaseId: 'p0' })]);
+    const c = comparePrice({ name: 'Sabão líquido', unit: 'un', foundPriceCents: 1430 }, st);
+    expect(c.status).toBe('sem');
+    expect(c.hint).toContain('tamanho');
+  });
+  it('limiar usa o valor arredondado (5,4% é média)', () => {
+    const st = priceStatsFor('Fita crepe', [e('FITA CREPE', 10000)]);
+    expect(comparePrice({ name: 'Fita crepe', unit: 'un', foundPriceCents: 10540 }, st).status).toBe('media');
+    expect(comparePrice({ name: 'Fita crepe', unit: 'un', foundPriceCents: 10600 }, st).status).toBe('acima');
+  });
+});

@@ -20,6 +20,8 @@ export interface PriceComparison {
   avgCents?: number;
   icon: string;
   text: string;
+  /** Dica quando não há comparação. */
+  hint?: string;
 }
 
 export interface ListLike {
@@ -35,10 +37,10 @@ const SEM: PriceComparison = { status: 'sem', pct: 0, basis: 'unit', icon: '–'
 function build(found: number, avg: number, basis: PriceComparison['basis']): PriceComparison {
   if (!(avg > 0) || !(found >= 0)) return SEM;
   const pct = Math.round(((found - avg) / avg) * 100);
-  const raw = ((found - avg) / avg) * 100;
   const base = { pct, basis, foundCents: found, avgCents: avg };
-  if (raw > NEAR_AVG_PCT) return { ...base, status: 'acima', icon: '▲', text: `acima do preço médio (+${pct}%)` };
-  if (raw < -NEAR_AVG_PCT) return { ...base, status: 'abaixo', icon: '▼', text: `abaixo do preço médio (${pct}%)` };
+  // Status e texto usam o MESMO valor arredondado (5,4% = "na média").
+  if (pct > NEAR_AVG_PCT) return { ...base, status: 'acima', icon: '▲', text: `acima do preço médio (+${pct}%)` };
+  if (pct < -NEAR_AVG_PCT) return { ...base, status: 'abaixo', icon: '▼', text: `abaixo do preço médio (${pct}%)` };
   return { ...base, status: 'media', icon: '●', text: `na média (±${NEAR_AVG_PCT}%)` };
 }
 
@@ -57,8 +59,24 @@ export function comparePrice(item: Pick<ListLike, 'name' | 'unit' | 'foundPriceC
     const total = packageTotal(pkg);
     if (total > 0) return build(found / total, stats.normalizedAvg, pkg.unit);
   }
-  if (item.unit === stats.last.unit) return build(found, stats.avgUnitCents, 'unit');
+  // Fallback por unidade de venda: só quando o histórico não mistura tamanhos de embalagem.
+  if (item.unit === stats.last.unit) {
+    if (historyUniform(stats)) return build(found, stats.avgUnitCents, 'unit');
+    return { ...SEM, hint: 'Histórico com embalagens de tamanhos diferentes: inclua o tamanho no nome (ex.: 3L).' };
+  }
   return SEM;
+}
+
+/** Chave do tamanho de embalagem de uma descrição ('none' se não reconhecida). */
+function sizeKey(desc: string): string {
+  const p = parsePackage(desc);
+  return p ? `${p.unit}:${Math.round(packageTotal(p) * 1e6)}` : 'none';
+}
+
+/** Todas as compras (na unidade da última) têm o mesmo tamanho de embalagem? */
+export function historyUniform(stats: PriceStats): boolean {
+  const keys = new Set(stats.matches.filter((m) => m.unit === stats.last.unit).map((m) => sizeKey(m.rawDescription)));
+  return keys.size <= 1;
 }
 
 /** Texto do tipo "R$/kg" para a base da comparação. */
@@ -79,7 +97,15 @@ export interface TotalEstimate {
 /** Preço usado na estimativa: encontrado, ou último pago se a unidade for a mesma do item. */
 export function estimatedUnitPrice(item: ListLike, stats: PriceStats | null | undefined): number | null {
   if (item.foundPriceCents !== undefined) return item.foundPriceCents;
-  if (stats && stats.last.unit === item.unit) return stats.last.unitPriceCents;
+  if (!stats) return null;
+  // Nome com embalagem ("Sabão 3L"): usa o último R$/kg|L normalizado × tamanho do item.
+  const pkg = parsePackage(item.name);
+  if (pkg) {
+    if (stats.normalizedLast && stats.normalizedLast.unit === pkg.unit) return Math.round(stats.normalizedLast.cents * packageTotal(pkg));
+    return null;
+  }
+  // Sem tamanho no nome: só usa o último preço se o histórico não mistura embalagens.
+  if (stats.last.unit === item.unit && historyUniform(stats)) return stats.last.unitPriceCents;
   return null;
 }
 

@@ -1,4 +1,4 @@
-import { matchesListItem } from '../prices/priceMatch';
+import { descTokens, matchesListItem } from '../prices/priceMatch';
 
 /**
  * Reconciliação do Modo compras com a NFC-e importada. Pura.
@@ -25,6 +25,8 @@ export interface ReconMatch {
   paidCents: number;
   /** pago - encontrado (positivo = pagou mais que o anotado). Ausente se não houve preço encontrado. */
   diffCents?: number;
+  /** Casamento frouxo: a nota começa com outra palavra ("CREME DE LEITE" para "Leite") ou há mais de um candidato. Não vem pré-selecionado. */
+  loose: boolean;
 }
 
 export interface Reconciliation {
@@ -35,21 +37,29 @@ export interface Reconciliation {
   unmatchedNote: ReconNoteItem[];
 }
 
+const firstWord = (s: string) => descTokens(s).words[0] ?? '';
+
 export function reconcile(checkedItems: ReconListItem[], noteItems: ReconNoteItem[]): Reconciliation {
   const used = new Set<string>();
   const byList = new Map<string, ReconMatch>();
   const wordCount = (s: string) => s.trim().split(/\s+/).length;
   const order = [...checkedItems].sort((a, b) => wordCount(b.name) - wordCount(a.name));
   for (const li of order) {
-    const hit = noteItems.find((n) => !used.has(n.id) && matchesListItem(li.name, n.rawDescription));
-    if (!hit) continue;
-    used.add(hit.id);
+    const cands = noteItems.filter((n) => !used.has(n.id) && matchesListItem(li.name, n.rawDescription));
+    if (cands.length === 0) continue;
+    // Mais próximo primeiro: nota que começa pela palavra da lista, depois menos palavras extras.
+    const ranked = cands
+      .map((n, idx) => ({ n, idx, lead: leadsWithListWord(li.name, n.rawDescription) ? 0 : 1, extra: descTokens(n.rawDescription).words.length }))
+      .sort((x, y) => x.lead - y.lead || x.extra - y.extra || x.idx - y.idx);
+    const best = ranked[0]!;
+    used.add(best.n.id);
     const found = li.foundPriceCents;
     byList.set(li.id, {
       listItem: li,
-      noteItem: hit,
-      paidCents: hit.unitPriceCents,
-      ...(found !== undefined ? { foundCents: found, diffCents: hit.unitPriceCents - found } : {}),
+      noteItem: best.n,
+      paidCents: best.n.unitPriceCents,
+      loose: best.lead === 1 || cands.length > 1,
+      ...(found !== undefined ? { foundCents: found, diffCents: best.n.unitPriceCents - found } : {}),
     });
   }
   return {
@@ -57,4 +67,10 @@ export function reconcile(checkedItems: ReconListItem[], noteItems: ReconNoteIte
     unmatchedList: checkedItems.filter((li) => !byList.has(li.id)),
     unmatchedNote: noteItems.filter((n) => !used.has(n.id)),
   };
+}
+
+/** A primeira palavra da nota é uma das palavras do nome da lista? ("CREME DE LEITE" não é "Leite"). */
+function leadsWithListWord(listName: string, desc: string): boolean {
+  const fw = firstWord(desc);
+  return !!fw && descTokens(listName).words.some((w) => w === fw || fw.startsWith(w) || w.startsWith(fw));
 }

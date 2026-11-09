@@ -111,7 +111,7 @@ function ShopRow({ item, stats }: { item: ShoppingListItem; stats?: PriceStats }
   async function save() {
     const c = parsePriceInput(text);
     if (c === null || c === item.foundPriceCents) {
-      if (c === null && text.trim() && item.foundPriceCents === undefined) toast('Preço inválido');
+      if (c === null && text.trim() && text.trim() !== (item.foundPriceCents !== undefined ? centsToInput(item.foundPriceCents) : '')) toast('Preço inválido');
       if (c === null) setText(item.foundPriceCents !== undefined ? centsToInput(item.foundPriceCents) : '');
       return;
     }
@@ -142,7 +142,7 @@ function ShopRow({ item, stats }: { item: ShoppingListItem; stats?: PriceStats }
       </button>
       <div className="shop-price">
         <label className="shop-price-label">
-          <span className="item-meta">Preço encontrado (R$)</span>
+          <span className="item-meta">Preço encontrado (R$ por {item.unit === 'un' ? 'unidade' : item.unit})</span>
           <input
             className="input shop-input"
             inputMode="decimal"
@@ -167,6 +167,7 @@ function ShopRow({ item, stats }: { item: ShoppingListItem; stats?: PriceStats }
         {item.foundPriceCents !== undefined && (
           <span className={`cmp cmp-${cmp.status}`} role="status" data-testid="shop-compare">
             <span aria-hidden>{cmp.icon}</span> {cmp.text}
+            {cmp.hint && <span className="item-meta" style={{ display: 'block' }}>{cmp.hint}</span>}
             {cmp.status !== 'sem' && cmp.basis !== 'unit' && ` · por ${basisLabel(cmp.basis)}`}
           </span>
         )}

@@ -224,11 +224,22 @@ function ReconcilePanel({ purchase, onClose }: { purchase: Purchase; onClose: ()
   );
   const checked = listItems.filter((i) => i.checked);
   const r = reconcile(checked, noteItems);
+  // Seleção por linha: pré-marcadas só as correspondências seguras (não frouxas); o usuário confirma.
+  const [off, setOff] = useState<Set<string>>(new Set());
+  const [on, setOn] = useState<Set<string>>(new Set());
+  const isSel = (m: (typeof r.matched)[number]) => (m.loose ? on.has(m.listItem.id) : !off.has(m.listItem.id));
+  const toggle = (m: (typeof r.matched)[number]) => {
+    const id = m.listItem.id;
+    const set = new Set(m.loose ? on : off);
+    set.has(id) ? set.delete(id) : set.add(id);
+    (m.loose ? setOn : setOff)(set);
+  };
+  const selected = r.matched.filter(isSel);
 
   async function clear() {
     try {
-      for (const m of r.matched) await s.repo.removeItem(hid, m.listItem.id);
-      toast(`${r.matched.length} item(ns) comprado(s) removido(s) da lista`);
+      for (const m of selected) await s.repo.removeItem(hid, m.listItem.id);
+      toast(`${selected.length} item(ns) removido(s) da lista. Para desfazer: Lista › removidos recentemente › Restaurar`);
     } catch (e) {
       toast((e as Error).message);
     }
@@ -245,6 +256,13 @@ function ReconcilePanel({ purchase, onClose }: { purchase: Purchase; onClose: ()
           <strong>Conferência: {r.matched.length} de {checked.length} marcado(s) estão na nota</strong>
           {r.matched.map((m) => (
             <div className="import-line" key={m.listItem.id} data-testid="reconcile-line">
+              <input
+                type="checkbox"
+                checked={isSel(m)}
+                onChange={() => toggle(m)}
+                aria-label={`Remover ${m.listItem.name} da lista`}
+                style={{ width: 24, height: 24 }}
+              />
               <span className="grow">
                 {m.listItem.name}
                 <span className="item-meta" style={{ display: 'block' }}>{m.noteItem.rawDescription}</span>
@@ -260,6 +278,7 @@ function ReconcilePanel({ purchase, onClose }: { purchase: Purchase; onClose: ()
                   </span>
                 )}
                 {m.diffCents === 0 && <span className="cmp cmp-media">● igual ao anotado</span>}
+                {m.loose && <span className="cmp cmp-sem">Confira se é o mesmo produto</span>}
               </span>
             </div>
           ))}
@@ -269,8 +288,8 @@ function ReconcilePanel({ purchase, onClose }: { purchase: Purchase; onClose: ()
         <span className="muted">Marcados que não vieram na nota: {r.unmatchedList.map((i) => i.name).join(', ')}.</span>
       )}
       <div className="import-actions">
-        <button className="btn btn-primary" type="button" disabled={r.matched.length === 0} onClick={clear}>
-          Limpar comprados
+        <button className="btn btn-primary" type="button" disabled={selected.length === 0} onClick={clear}>
+          Limpar comprados ({selected.length})
         </button>
         <button className="btn btn-plain" type="button" onClick={onClose}>Fechar</button>
       </div>
