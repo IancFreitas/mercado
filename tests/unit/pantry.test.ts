@@ -12,7 +12,7 @@ import { byCategory, inMonth, loadCategoryLines } from '../../src/spending/spend
 import type { Unit } from '../../src/domain/types';
 
 let dbCounter = 0;
-let clock = 1_700_000_000_000;
+let clock = Date.parse("2026-11-01T00:00:00Z");
 const now = () => clock;
 
 async function device(server: MemorySyncServer, userId: string, name: string, connected = true) {
@@ -64,6 +64,8 @@ describe('funções puras', () => {
     expect(stockOf([{ delta: 1.5 }, { delta: -0.25 }])).toBe(1.25);
     expect(stockOf([{ delta: 3 }, { delta: -1, deleted: true }])).toBe(3);
     expect(round3(1.23456)).toBe(1.235);
+    // piso em zero, em ordem (at, id)
+    expect(stockOf([{ delta: 5, at: '1' }, { delta: -5, at: '2' }, { delta: -5, at: '3' }, { delta: 2, at: '4' }])).toBe(2);
   });
   it('titleCase deixa nomes legíveis', () => {
     expect(titleCase('ARROZ TIO JOAO 5KG')).toBe('Arroz Tio Joao 5KG');
@@ -260,6 +262,56 @@ describe('Despensa em dois aparelhos (MemorySyncServer)', () => {
     await syncAll();
     expect(await ian.svc.currentStock(hid, product.id)).toBe(3);
     expect(await fer.svc.currentStock(hid, product.id)).toBe(3);
+  });
+
+  it('"Acabou" concorrente nos dois aparelhos: estoque 0 (nunca negativo) e compra futura vale', async () => {
+    const { product } = await ian.svc.addManual(hid, { name: 'Leite', quantity: 5, unit: 'l' });
+    await syncAll();
+    ian.engine.setTransport(null);
+    fer.engine.setTransport(null);
+    await ian.svc.markOut(hid, product.id);
+    await fer.svc.markOut(hid, product.id);
+    ian.engine.setTransport(server.transportFor('user-ian'));
+    fer.engine.setTransport(server.transportFor('user-fer'));
+    await syncAll();
+    for (const d of [ian, fer]) expect(await d.svc.currentStock(hid, product.id)).toBe(0);
+    await ian.svc.addManual(hid, { name: 'Leite', quantity: 2, unit: 'l' });
+    await syncAll();
+    for (const d of [ian, fer]) {
+      expect(await d.svc.currentStock(hid, product.id)).toBe(2);
+      expect(splitStock(await d.svc.stockRows(hid)).inStock).toHaveLength(1);
+    }
+  });
+
+  it('"Usei 1" concorrente com 1 restante: estoque 0, não negativo', async () => {
+    const { product } = await ian.svc.addManual(hid, { name: 'Ovos', quantity: 1 });
+    await syncAll();
+    ian.engine.setTransport(null);
+    fer.engine.setTransport(null);
+    await ian.svc.consume(hid, product.id, 1);
+    await fer.svc.consume(hid, product.id, 1);
+    ian.engine.setTransport(server.transportFor('user-ian'));
+    fer.engine.setTransport(server.transportFor('user-fer'));
+    await syncAll();
+    expect(await ian.svc.currentStock(hid, product.id)).toBe(0);
+    expect(await fer.svc.currentStock(hid, product.id)).toBe(0);
+  });
+
+  it('mesma nota adicionada por duas pessoas offline: sem conflito espúrio (by)', async () => {
+    const lines = [{ desc: 'ARROZ TIO JOAO 5KG', qty: 2 }];
+    ian.engine.setTransport(null);
+    fer.engine.setTransport(null);
+    const pid = await seedPurchase(ian, hid, lines);
+    await seedPurchase(fer, hid, lines);
+    await ian.svc.addPurchaseToPantry(hid, pid);
+    await fer.svc.addPurchaseToPantry(hid, pid);
+    ian.engine.setTransport(server.transportFor('user-ian'));
+    fer.engine.setTransport(server.transportFor('user-fer'));
+    await syncAll();
+    for (const d of [ian, fer]) {
+      const conflicts = (await d.db.conflicts.toArray()).filter((c) => c.entity === 'inventoryMovements' || c.entity === 'products');
+      expect(conflicts.map((c) => `${c.entity}.${c.field}`)).toEqual([]);
+    }
   });
 
   it('produto nasce com o mesmo id nos dois aparelhos', async () => {

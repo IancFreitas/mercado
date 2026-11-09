@@ -66,7 +66,7 @@ export function availableMonths(purchases: Purchase[], current: string): string[
 /** Variação % sobre o mês anterior; só existe se os dois totais forem > 0. */
 export function changePct(currentCents: number, previousCents: number): number | null {
   if (!(currentCents > 0) || !(previousCents > 0)) return null;
-  return Math.round(((currentCents - previousCents) / previousCents) * 1000) / 10;
+  return Math.round(((currentCents - previousCents) / previousCents) * 1000) / 10 || 0;
 }
 
 export interface MonthSummary {

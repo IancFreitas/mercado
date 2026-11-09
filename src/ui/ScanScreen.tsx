@@ -172,10 +172,10 @@ function PurchaseRow({ p }: { p: Purchase }) {
               const r = await pantryFor(s.repo).addPurchaseToPantry(hid, p.id);
               toast(
                 r.movements > 0
-                  ? `${r.movements} produto(s) adicionados à despensa`
+                  ? `${r.movements} produto(s) adicionados à despensa${r.ignored ? ` · ${r.ignored} item(ns) ignorado(s): unidade diferente do produto` : ''}`
                   : r.already > 0
                     ? 'Esta nota já estava na despensa'
-                    : 'Nenhum item pôde ser adicionado',
+                    : `Nenhum item pôde ser adicionado${r.ignored ? ` (${r.ignored} ignorado(s): unidade diferente do produto)` : ''}`,
               );
             } catch (e) {
               toast((e as Error).message);
@@ -262,7 +262,7 @@ function ImportPanel({ purchase, onDone, onCancel }: { purchase: Purchase; onDon
       if (toPantry) {
         try {
           const r = await pantryFor(s.repo).addPurchaseToPantry(hid, purchase.id);
-          msg = `Itens importados · ${r.movements} produto(s) na despensa`;
+          msg = `Itens importados · ${r.movements} produto(s) na despensa${r.ignored ? ` · ${r.ignored} item(ns) ignorado(s): unidade diferente do produto ou dados inválidos` : ''}`;
         } catch (e) {
           msg = `Itens importados, mas não entraram na despensa: ${(e as Error).message}`;
         }

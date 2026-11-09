@@ -144,7 +144,7 @@ A aba **Despensa** mostra o que há em casa, por categoria, com a quantidade e a
 - **Acabou:** produtos sem estoque vão para a seção "Acabou", com **Pôr na lista** (não duplica se já estiver na lista).
 - **Histórico:** toque no nome do produto para ver todas as movimentações (compra, consumo, ajuste...) com data e quem fez.
 - A quantidade é sempre a **soma das movimentações**, então se vocês dois registrarem "Usei 1" ao mesmo tempo (até offline),
-  as duas baixas valem. Quantidades fracionadas (kg) usam até 3 casas.
+  as duas baixas valem; o estoque nunca fica abaixo de zero ("Acabou" nos dois celulares não deixa saldo negativo). Já dois **ajustes** de quantidade feitos ao mesmo tempo se somam (confira o histórico). A categoria dos gastos é a atual do produto, então mudar a categoria muda meses antigos. Se um produto for cadastrado à mão e vier da nota em celulares diferentes ao mesmo tempo, podem surgir dois produtos iguais. Quantidades fracionadas (kg) usam até 3 casas.
 - Limitações: se uma nota for removida depois, o estoque que ela gerou continua (ajuste na mão); itens de uma nota cuja unidade
   difere da do produto (ex.: kg × un) não são somados e a mensagem avisa; nota sem itens importados não entra na despensa.
 

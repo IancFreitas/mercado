@@ -135,7 +135,7 @@ function ProductRow({ row, isOut }: { row: StockRow; isOut?: boolean }) {
 
   return (
     <li className="row pantry-row" data-testid="pantry-row">
-      <button className="row-main" onClick={() => setPanel(panel === 'hist' ? 'none' : 'hist')} aria-expanded={panel === 'hist'} aria-label={`Histórico de ${p.name}`}>
+      <button className="row-main" onClick={() => setPanel(panel === 'hist' ? 'none' : 'hist')} aria-expanded={panel === 'hist'} aria-label={`Histórico de ${p.name}, ${isOut ? 'sem estoque' : formatQty(row.quantity, row.unit)}`}>
         <span className="item-name">{p.name}</span>
         <span className="item-meta">
           {isOut ? 'Sem estoque' : formatQty(row.quantity, row.unit)}

@@ -72,10 +72,20 @@ export interface StockRow {
   movementCount: number;
 }
 
-/** Soma dos deltas, em milésimos para não acumular erro de ponto flutuante. */
-export function stockOf(movements: Pick<InventoryMovement, 'delta' | 'deleted'>[]): number {
+/**
+ * Estoque = movimentos dobrados em ordem (at, id) com piso em zero, em milésimos (sem ruído de float).
+ * O piso torna determinístico o caso de baixas concorrentes ("Acabou"/"Usei 1" em 2 aparelhos):
+ * o estoque nunca fica negativo e não "come" compras futuras. Ajustes simultâneos continuam
+ * se somando (limitação documentada).
+ */
+export function stockOf(movements: Pick<InventoryMovement, 'delta' | 'deleted'>[] & { at?: string; id?: string }[]): number {
+  const ordered = [...movements].sort((a, b) => {
+    const x = a.at ?? '';
+    const y = b.at ?? '';
+    return x === y ? ((a.id ?? '') < (b.id ?? '') ? -1 : (a.id ?? '') > (b.id ?? '') ? 1 : 0) : x < y ? -1 : 1;
+  });
   let milli = 0;
-  for (const m of movements) if (!m.deleted && Number.isFinite(m.delta)) milli += Math.round(m.delta * 1000);
+  for (const m of ordered) if (!m.deleted && Number.isFinite(m.delta)) milli = Math.max(0, milli + Math.round(m.delta * 1000));
   return milli / 1000;
 }
 
@@ -184,7 +194,8 @@ export class PantryService {
       delta: round3(delta),
       unit: extra.unit ?? product.unit ?? 'un',
       at: extra.at ?? this.repo.nowIso(),
-      by: this.repo.actorName(),
+      // 'compra' da nota é determinística e pode ser gravada por duas pessoas: `by` fixo evita conflito espúrio.
+      by: kind === 'compra' && extra.purchaseItemId ? 'nota' : this.repo.actorName(),
       deleted: false,
     };
     if (extra.purchaseItemId) fields.purchaseItemId = extra.purchaseItemId;
