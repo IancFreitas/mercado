@@ -3,7 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useApp } from '../app/AppContext';
 import { findDuplicates } from '../db/repo';
 import { CATEGORIES, type Category, type ShoppingListItem, type Unit } from '../domain/types';
-import { formatQty } from './components';
+import { formatQty, formatBRL } from './components';
+import { formatCnpj } from '../nfce/accessKey';
+import { prepareEntries, priceStatsPrepared, type PriceEntry, type PriceStats } from '../prices/priceMatch';
 
 const UNITS: Unit[] = ['un', 'kg', 'g', 'l', 'ml', 'pct', 'cx', 'dz'];
 const MAX_REMOVED = 30;
@@ -30,6 +32,7 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
     [hid],
     [],
   );
+  const entries = useLiveQuery(() => s.repo.priceEntries(hid), [hid], [] as PriceEntry[]);
   const [name, setName] = useState('');
   const [qty, setQty] = useState('1');
   const [unit, setUnit] = useState<Unit>('un');
@@ -60,6 +63,17 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
   const pending = active.filter((i) => !i.checked);
   const inCart = active.filter((i) => i.checked);
   const removed = items.filter((i) => i.deleted).sort((a, b) => (a._v.deleted! < b._v.deleted! ? 1 : -1)).slice(0, MAX_REMOVED);
+  const prepared = useMemo(() => prepareEntries(entries), [entries]);
+  const stats = useMemo(() => {
+    const m = new Map<string, PriceStats>();
+    if (prepared.length === 0) return m;
+    for (const i of items) {
+      if (i.deleted) continue;
+      const st = priceStatsPrepared(i.name, prepared);
+      if (st) m.set(i.id, st);
+    }
+    return m;
+  }, [items, prepared]);
   const dups = useMemo(() => findDuplicates(active), [active]);
   const groups = useMemo(() => {
     const m = new Map<string, ShoppingListItem[]>();
@@ -154,7 +168,7 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
           <h2 className="section-title">{cat}</h2>
           <ul className="card list" data-testid="pending-list">
             {its.map((i) => (
-              <ItemRow key={i.id} item={i} editing={editing === i.id} onEdit={() => setEditing(editing === i.id ? null : i.id)} />
+              <ItemRow key={i.id} item={i} stats={stats.get(i.id)} editing={editing === i.id} onEdit={() => setEditing(editing === i.id ? null : i.id)} />
             ))}
           </ul>
         </section>
@@ -170,7 +184,7 @@ export function ListScreen({ deepLinkAdd }: { deepLinkAdd?: { name: string; qty:
           </h2>
           <ul className="card list" data-testid="cart-list">
             {inCart.map((i) => (
-              <ItemRow key={i.id} item={i} editing={false} onEdit={() => {}} />
+              <ItemRow key={i.id} item={i} stats={stats.get(i.id)} editing={false} onEdit={() => {}} />
             ))}
           </ul>
         </section>
@@ -204,7 +218,21 @@ function sortItems(a: ShoppingListItem, b: ShoppingListItem): number {
   return p[a.priority] - p[b.priority] || a.name.localeCompare(b.name, 'pt-BR');
 }
 
-function ItemRow({ item, editing, onEdit }: { item: ShoppingListItem; editing: boolean; onEdit: () => void }) {
+const fmtDay = (iso: string) => {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', ...(sameYear ? {} : { year: 'numeric' }), timeZone: 'America/Sao_Paulo' });
+};
+
+function priceLine(st: PriceStats): string {
+  const u = st.last.unit === 'un' ? '' : `/${st.last.unit}`;
+  const parts = [`Último ${formatBRL(st.last.unitPriceCents)}${u}`, fmtDay(st.last.purchasedAt)];
+  if (st.count >= 2) parts.push(`médio ${formatBRL(st.avgUnitCents)}${u}`);
+  parts.push(st.last.rawDescription);
+  return parts.join(' · ');
+}
+
+function ItemRow({ item, stats, editing, onEdit }: { item: ShoppingListItem; stats?: PriceStats; editing: boolean; onEdit: () => void }) {
   const { s, session } = useApp();
   const hid = session.householdId!;
   const [q, setQ] = useState(String(item.quantity));
@@ -228,7 +256,26 @@ function ItemRow({ item, editing, onEdit }: { item: ShoppingListItem; editing: b
           {formatQty(item.quantity, item.unit)}
           {item.createdBy && ` · ${item.createdBy}`}
         </span>
+        {stats && (
+          <span className="item-meta price-line" data-testid="price-line">
+            <span className="sr-only">Preço pago: </span>
+            {priceLine(stats)}
+          </span>
+        )}
       </button>
+      {editing && stats && (
+        <div className="price-block" data-testid="price-block">
+          <strong>Preços pagos</strong>
+          <ul>
+            {stats.matches.slice(0, 5).map((m, k) => (
+              <li key={`${m.purchaseId}-${k}`}>
+                {fmtDay(m.purchasedAt)} · {formatBRL(m.unitPriceCents)}/{m.unit} · {m.rawDescription}
+                {m.storeCnpj && ` · loja ${formatCnpj(m.storeCnpj)}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {editing && (
         <div className="row-edit">
           <button className="btn btn-plain" aria-label="Diminuir" onClick={() => s.repo.updateItem(hid, item.id, { quantity: Math.max(1, item.quantity - 1) })}>
